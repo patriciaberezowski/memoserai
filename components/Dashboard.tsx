@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell 
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell
 } from 'recharts';
 
 const dataChart = [
@@ -19,23 +19,35 @@ const pieData = [
 
 const COLORS = ['#cc0000', '#f1f5f9'];
 
-const Dashboard: React.FC = () => {
+import { AppView } from '../types';
+
+interface DashboardProps {
+  setView?: (view: AppView) => void;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
   return (
     <div className="space-y-8 p-8 animate-in fade-in duration-500">
       <div>
         <h2 className="text-3xl font-black text-slate-900 tracking-tight">Painel de Controle</h2>
-        <p className="text-slate-500 text-sm mt-1">Bem-vindo ao sistema de monitoramento institucional de Maricá.</p>
+        <p className="text-slate-500 text-sm mt-1">Bem-vindo ao sistema de controle de fluxo de memorandos.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[
-          { label: 'Recebidos', val: '124', change: '+12%', icon: 'move_to_inbox', color: 'blue' },
-          { label: 'Enviados', val: '89', change: 'Estável', icon: 'send', color: 'red' },
-          { label: 'Respondidos', val: '76', change: '+8%', icon: 'task_alt', color: 'green' },
-          { label: 'Expirados', val: '05', change: '+2', icon: 'error', color: 'primary' },
+          { label: 'Recebidos', val: '12', change: '+2', icon: 'move_to_inbox', color: 'blue', route: AppView.MEMOS_RECEIVED },
+          { label: 'Enviados', val: '24', change: '+5', icon: 'send', color: 'red', route: AppView.MEMOS_SENT },
+          { label: 'Respondidos', val: '18', change: '+3', icon: 'task_alt', color: 'green', route: AppView.MEMOS_ANSWERED },
+          { label: 'Pendentes', val: '10', change: '-1', icon: 'pending_actions', color: 'amber', route: AppView.MEMOS_PENDING },
+          { label: 'Resolvidos', val: '45', change: '+12', icon: 'inventory_2', color: 'slate', route: AppView.MEMOS_RESOLVED },
+          { label: 'Expirados', val: '3', change: '0', icon: 'error', color: 'primary', route: AppView.MEMOS_EXPIRED },
         ].map((kpi, idx) => (
-          <div key={idx} className="bg-white p-6 rounded-2xl border border-primary/5 shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-center justify-between mb-4">
+          <button
+            key={idx}
+            onClick={() => setView && setView(kpi.route)}
+            className="bg-white p-6 rounded-2xl border border-primary/5 shadow-sm hover:shadow-md hover:bg-slate-50 transition-all text-left flex flex-col w-full cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-4 w-full">
               <span className={`material-symbols-outlined text-${kpi.color}-500 bg-slate-50 p-3 rounded-xl`}>{kpi.icon}</span>
               <span className={`text-[11px] font-black px-2 py-1 rounded-full ${kpi.change.includes('+') ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-400'}`}>
                 {kpi.change}
@@ -43,7 +55,7 @@ const Dashboard: React.FC = () => {
             </div>
             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{kpi.label}</p>
             <p className={`text-3xl font-black ${kpi.color === 'primary' ? 'text-primary' : 'text-slate-900'} mt-1`}>{kpi.val}</p>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -65,16 +77,16 @@ const Dashboard: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} />
                 <YAxis hide />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   labelStyle={{ fontWeight: 900, color: '#cc0000' }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#cc0000" 
-                  strokeWidth={4} 
-                  dot={{ r: 6, fill: '#cc0000', strokeWidth: 3, stroke: '#fff' }} 
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#cc0000"
+                  strokeWidth={4}
+                  dot={{ r: 6, fill: '#cc0000', strokeWidth: 3, stroke: '#fff' }}
                   activeDot={{ r: 8 }}
                 />
               </LineChart>
