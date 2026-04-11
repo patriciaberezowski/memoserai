@@ -45,7 +45,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         Sistema Oficial de Memorandos
                     </div>
 
-                    <h1 className="text-5xl lg:text-7xl font-black mb-6 tracking-tight leading-tight">
+                    <h1 className="text-4xl lg:text-5xl xl:text-[3.5rem] font-black mb-6 tracking-tight leading-tight lg:whitespace-nowrap">
                         Gestão inteligente com o <br />
                         <span className="bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-orange-500 to-amber-500">
                             Portal Doc.
