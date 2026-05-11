@@ -70,6 +70,17 @@ export interface Memo {
   hasSignedPdf?: boolean;
   category?: 'Informativo' | 'Demanda';
   body?: string;
+  attachments?: { name: string, url?: string }[];
+  history?: MemoHistoryEntry[];
+}
+
+export interface MemoHistoryEntry {
+  id: string;
+  action: string;
+  date: string;
+  time: string;
+  userName: string;
+  userRole: string;
 }
 
 export interface LogEntry {

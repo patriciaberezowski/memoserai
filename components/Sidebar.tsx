@@ -42,8 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         { view: AppView.REGISTERS_SIGNERS, icon: 'history_edu', label: 'Signatários' },
         { view: AppView.REGISTERS_FUNCTIONS, icon: 'admin_panel_settings', label: 'Funções/Permissões' },
       ]
-    },
-    { view: AppViewAlias.LOGS, icon: 'history', label: 'Auditoria' },
+    }
   ];
 
   return (

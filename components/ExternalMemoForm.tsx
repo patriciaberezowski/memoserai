@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Memo, AppView, AppViewAlias } from '../types';
+import { Memo, AppView, AppViewAlias, MemoHistoryEntry } from '../types';
 
 interface ExternalMemoFormProps {
     initialData?: Memo | null;
@@ -29,6 +29,29 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
     const [linkedMemo, setLinkedMemo] = useState('');
     const [status, setStatus] = useState(initialData?.status || 'PENDENTE');
     const [file, setFile] = useState<File | null>(null);
+    const [attachments, setAttachments] = useState<File[]>([]);
+
+    const [localHistory, setLocalHistory] = useState<MemoHistoryEntry[]>(initialData?.history || []);
+
+    const logAction = (actionDesc: string) => {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+        const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLocalHistory(prev => [{
+            id: crypto.randomUUID(),
+            action: actionDesc,
+            date: dateStr,
+            time: timeStr,
+            userName: 'Patrícia Berezowski',
+            userRole: 'Diretora de Comunicação'
+        }, ...prev]);
+    };
+
+    useEffect(() => {
+        if (!isEdit && localHistory.length === 0) {
+            logAction('Documento importado (Rascunho criado)');
+        }
+    }, [isEdit, localHistory.length]);
 
     useEffect(() => {
         if (isEdit && initialData) {
@@ -61,7 +84,11 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
             initialData.subject = subject;
             initialData.receiptDate = receiptDate;
             initialData.status = status;
+            initialData.attachments = attachments.map(f => ({ name: f.name }));
+            initialData.history = localHistory;
         }
+
+        logAction('Alterações manuais salvas no sistema');
 
         alert(isEdit ? 'Alterações salvas com sucesso!' : 'Memorando Externo Registrado!');
         if (setView) setView(AppViewAlias.EXTERNAL_MEMOS);
@@ -268,6 +295,46 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
                                 </div>
                             </label>
                         </div>
+
+                        <div className="pt-8 border-t border-slate-100">
+                            <label className="block mb-4">
+                                <span className="text-sm font-bold text-slate-700 uppercase tracking-widest block mb-1">Anexos Adicionais (Opcional)</span>
+                                <p className="text-xs text-slate-500 mb-2">Adicione planilhas, imagens ou outros arquivos complementares.</p>
+                                <div className="flex flex-col md:flex-row items-center gap-4">
+                                    <label className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 px-6 rounded-xl cursor-pointer transition-colors border border-slate-200 border-dashed w-full md:w-auto shrink-0">
+                                        <span className="material-symbols-outlined text-xl">attach_file</span>
+                                        <span className="text-sm font-bold">Selecionar Arquivos</span>
+                                        <input 
+                                            type="file" 
+                                            multiple 
+                                            className="hidden" 
+                                            onChange={(e) => {
+                                                if (e.target.files) {
+                                                    setAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+                                                    logAction(`Fez upload de ${e.target.files.length} anexo(s) extra(s)`);
+                                                }
+                                            }} 
+                                        />
+                                    </label>
+                                    <div className="flex-1 flex flex-wrap gap-2 text-sm overflow-hidden">
+                                        {attachments.map((fileObj, i) => (
+                                            <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 pl-3 pr-2 py-1.5 rounded-lg shadow-sm">
+                                                <span className="material-symbols-outlined text-slate-400 text-[18px]">draft</span>
+                                                <span className="font-semibold text-slate-700 text-xs truncate max-w-[150px]">{fileObj.name}</span>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+                                                    className="text-slate-400 hover:text-red-500 flex items-center"
+                                                >
+                                                    <span className="material-symbols-outlined text-[16px]">close</span>
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {attachments.length === 0 && <span className="text-slate-400 italic text-sm">Nenhum arquivo extra</span>}
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
                     </div>
 
                     <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-4">
@@ -280,6 +347,44 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
                         </button>
                     </div>
                 </form>
+            </div>
+
+            {/* Controle de Edições */}
+            <div className="mt-8 bg-transparent rounded-none border-t-2 border-slate-200/50 pt-8 mb-4">
+                <div className="flex items-center gap-2 mb-6 px-2">
+                    <span className="material-symbols-outlined text-slate-500">history</span>
+                    <h3 className="font-bold text-slate-800 text-sm">Controle de Edições e Rastreabilidade</h3>
+                </div>
+                <div className="px-2">
+                    <div className="space-y-4">
+                        {localHistory.map((entry) => (
+                            <div key={entry.id} className="flex gap-4 items-start">
+                                <div className="mt-0.5 shrink-0">
+                                    <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm relative overflow-hidden">
+                                        {entry.action.toLowerCase().includes('criado') && <span className="material-symbols-outlined text-[16px] text-green-600">note_add</span>}
+                                        {entry.action.toLowerCase().includes('upload') && <span className="material-symbols-outlined text-[16px] text-blue-600">upload_file</span>}
+                                        {entry.action.toLowerCase().includes('texto') && <span className="material-symbols-outlined text-[16px] text-purple-600">edit_note</span>}
+                                        {!entry.action.toLowerCase().match(/criado|upload|texto/) && <span className="material-symbols-outlined text-[16px] text-slate-600">history_edu</span>}
+                                    </div>
+                                </div>
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <h4 className="text-sm font-bold text-slate-800">{entry.action}</h4>
+                                        <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">{entry.time}</span>
+                                    </div>
+                                    <p className="text-sm text-slate-600 leading-relaxed">
+                                        Por <strong>{entry.userName}</strong>, {entry.userRole}, no dia {entry.date}.
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                        {localHistory.length === 0 && (
+                            <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-sm italic">
+                                Ainda não há histórico associado.
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );

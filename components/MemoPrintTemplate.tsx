@@ -11,10 +11,10 @@ const MemoPrintTemplate: React.FC<MemoPrintTemplateProps> = ({ memo }) => {
     // This component is only rendered for printing (handled by CSS via display: none for screen)
     // and block for print
     return (
-        <div id="memo-print-container" className="print-only font-serif text-black leading-relaxed w-full min-h-screen bg-white hidden">
+        <div id="memo-print-container" className="print-only text-black w-full min-h-screen bg-white hidden" style={{ fontFamily: 'Calibri, sans-serif', fontSize: '11pt', lineHeight: 1.5 }}>
 
             {/* Margins e Container simulating A4 inside browser print context */}
-            <div className="max-w-4xl mx-auto p-[2cm] relative min-h-screen pb-[3cm]">
+            <div className="max-w-4xl mx-auto relative min-h-screen" style={{ paddingTop: '2cm', paddingBottom: '2cm', paddingLeft: '3cm', paddingRight: '2cm' }}>
 
                 {/* Header Section (Logo and Secretariat) */}
                 <div className="flex items-center justify-center gap-6 mb-16 pb-4">
@@ -36,16 +36,17 @@ const MemoPrintTemplate: React.FC<MemoPrintTemplateProps> = ({ memo }) => {
                         Memorando nº {memo.processNumber || '[A SER GERADO NO BANCO]'}
                     </div>
                     <div className="text-right font-bold text-lg">
-                        Maricá, {memo.date}.
+                        Brasília, {memo.date}.
                     </div>
                 </div>
 
                 {/* Recipient Section */}
                 <div className="mb-12">
-                    <p className="mb-1">Ao Sr. <strong>{memo.recipientName?.toUpperCase() || '[NOME DO DESTINATÁRIO]'}</strong></p>
+                    <p className="mb-1">{memo.recipientName || '[NOME DO DESTINATÁRIO]'}</p>
                     <p className="mb-1">{memo.recipientRole || '[CARGO]'}</p>
                     <p className="mb-1">{memo.recipient ? memo.recipient : '[SECRETARIA OU AUTARQUIA DE DESTINO]'}</p>
-                    <p>Endereço: [Endereço completo da pasta...]</p>
+                    <p className="mb-1">[Endereço completo da pasta...]</p>
+                    <p>[E-mail do destinatário...]</p>
                 </div>
 
                 {/* Subject */}
@@ -53,26 +54,30 @@ const MemoPrintTemplate: React.FC<MemoPrintTemplateProps> = ({ memo }) => {
                     <p><strong>Assunto:</strong> {memo.subject}</p>
                 </div>
 
+                {/* Greeting */}
+                <div className="mb-6">
+                    <p>Senhor(a) {memo.recipientRole ? memo.recipientRole.split(' ')[0] : 'Secretário(a)'},</p>
+                </div>
+
                 {/* Body Content */}
-                <div className="mb-16 text-justify whitespace-pre-wrap">
-                    {memo.content || memo.body}
+                <div className="mb-16">
+                    {(memo.content || memo.body || '').split('\n').map((paragraph, idx) => (
+                        <p key={idx} style={{ textAlign: 'justify', marginTop: 0, marginBottom: '6pt' }}>
+                            {paragraph || '\u00A0'}
+                        </p>
+                    ))}
                 </div>
 
                 {/* Signer Block */}
                 <div className="mt-24 w-full flex flex-col items-center justify-center text-center">
-                    <p className="mb-12">Atenciosamente,</p>
+                    <p className="mb-24">Atenciosamente,</p>
 
-                    <div className="mb-4">
-                        <span className="text-[10px] text-slate-500 block italic">Assinado digitalmente</span>
-                    </div>
-                    <div className="w-64 border-t border-black mb-2"></div>
-                    <p className="font-bold uppercase">{memo.signer || 'Ivana Cristina de Melo Moura'}</p>
-                    <p>{memo.signerRole || 'Secretária Municipal de Representação e Articulação Institucional'}</p>
-                    <p className="text-sm">Prefeitura de Maricá</p>
+                    <p className="font-bold uppercase">{memo.signer || 'IVANA CRISTINA MELO DE MOURA'}</p>
+                    <p>{memo.signerRole || 'Secretária de Representação e Articulação Institucional - SERAI'}</p>
                 </div>
 
                 {/* Fixed PDF Footer (Absolute positioned to bottom of page in print context) */}
-                <div className="absolute bottom-12 left-[2cm] right-[2cm] pt-4 text-[10px] text-center leading-relaxed text-slate-700 font-sans">
+                <div className="absolute bottom-12 left-[3cm] right-[2cm] pt-4 text-[10px] text-center leading-relaxed text-slate-700 font-sans">
                     <p>Prefeitura de Maricá: Rua Álvares de Castro, 346, Centro, Maricá/RJ. CEP: 24600-880</p>
                     <p>Sede SERAI: SCN, Quadra 06, Conj. A, 6º andar, Edifício Venâncio 3.000, Brasília/DF. CEP: 70716-900</p>
                     <p>Sub sede SERAI: Rua Álvares de Castro nº 346 - Anexo, Centro, Maricá/RJ. CEP: 24900-880</p>

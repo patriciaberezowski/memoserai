@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { generateMemoDraft } from '../services/geminiService';
-import { Memo, AppView, AppViewAlias } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { Memo, AppView, AppViewAlias, MemoHistoryEntry } from '../types';
 
 interface MemoFormProps {
   initialData?: Memo | null;
@@ -34,13 +33,33 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
   const [category, setCategory] = useState<'Informativo' | 'Demanda'>('Informativo');
   const [linkedMemo, setLinkedMemo] = useState('');
   const [status, setStatus] = useState('PENDENTE');
-
   const isLocked = isEdit && !!initialData?.hasSignedPdf;
 
-  // Generated / Manual content
-  const [details, setDetails] = useState('');
   const [content, setContent] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  
+  const [localHistory, setLocalHistory] = useState<MemoHistoryEntry[]>(initialData?.history || []);
+  const initialContentRef = useRef(initialData?.content || initialData?.body || '');
+
+  const logAction = (actionDesc: string) => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLocalHistory(prev => [{
+      id: crypto.randomUUID(),
+      action: actionDesc,
+      date: dateStr,
+      time: timeStr,
+      userName: 'Patrícia Berezowski',
+      userRole: 'Diretora de Comunicação'
+    }, ...prev]);
+  };
+
+  useEffect(() => {
+    if (!isEdit && localHistory.length === 0) {
+      logAction('Documento rascunho criado');
+    }
+  }, [isEdit, localHistory.length]);
 
   useEffect(() => {
     if (isEdit && initialData) {
@@ -59,28 +78,16 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
     }
   }, [isEdit, initialData]);
 
-  const handleAIDraft = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!subject) return alert('Por favor, informe primeiro o assunto, remetente e destinatário para gerar um bom rascunho.');
-    setIsGenerating(true);
-    try {
-      const contextToSend = `De: ${responsibleArea} (${signer}). Para: ${recipientName} (${recipientRole} - ${recipient}). Detalhes: ${details}`;
-      const draft = await generateMemoDraft(subject, contextToSend);
-      setContent(draft);
-    } catch (error: any) {
-      alert(`Falha na IA: ${error.message || 'Erro desconhecido'}`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!content) {
       return alert('O texto do memorando não pode estar vazio.');
     }
+    // Update mock history immediately before saving
+    logAction('Alterações manuais salvas no sistema');
+
     console.log('Memorando Interno Salvo:', {
-      date, recipient, recipientName, recipientRole, subject, deadline, responsibleArea, signer, category, content
+      date, recipient, recipientName, recipientRole, subject, deadline, responsibleArea, signer, category, content, attachments, history: localHistory
     });
     alert(isEdit ? 'Rascunho atualizado!' : 'Memorando Interno Criado com Sucesso!');
     if (setView) setView(AppViewAlias.INTERNAL_MEMOS);
@@ -211,31 +218,49 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
                 placeholder="Resumo claro do memorando"
               />
             </label>
-            {!isLocked && (
-              <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 flex flex-col gap-4">
-                <label className="block">
-                  <span className="text-sm font-bold text-primary uppercase tracking-widest">Gerador com IA - Detalhes (Opcional)</span>
-                  <textarea
-                    value={details}
-                    onChange={(e) => setDetails(e.target.value)}
-                    className="mt-2 block w-full !bg-white rounded-xl border-primary/20 focus:border-primary focus:ring-primary/20 text-sm py-3 h-20"
-                    placeholder="Adicione o contexto para a inteligência artificial formular o texto base oficial..."
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={handleAIDraft}
-                  disabled={isGenerating}
-                  className="self-end flex items-center justify-center gap-2 bg-slate-900 text-white py-2.5 px-6 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
-                  {isGenerating ? 'Escrevendo...' : 'Gerar Texto'}
-                </button>
-              </div>
-            )}
           </div>
 
-          <div className="pt-4">
+          <div className="pt-4 border-t border-slate-100">
+            <label className="block mb-4">
+              <span className="text-sm font-bold text-slate-700 uppercase tracking-widest block mb-1">Anexos (Opcional)</span>
+              <p className="text-xs text-slate-500 mb-2">Adicione planilhas, PDFs, imagens ou arquivos complementares ao memorando.</p>
+              <div className="flex flex-col md:flex-row items-center gap-4">
+                <label className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 px-6 rounded-xl cursor-pointer transition-colors border border-slate-200 border-dashed w-full md:w-auto shrink-0">
+                  <span className="material-symbols-outlined text-xl">attach_file</span>
+                  <span className="text-sm font-bold">Selecionar Arquivos</span>
+                  <input 
+                    type="file" 
+                    multiple 
+                    className="hidden" 
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        setAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+                        logAction(`Fez upload de ${e.target.files.length} anexo(s)`);
+                      }
+                    }} 
+                  />
+                </label>
+                <div className="flex-1 flex flex-wrap gap-2 text-sm overflow-hidden">
+                  {attachments.map((file, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 pl-3 pr-2 py-1.5 rounded-lg shadow-sm">
+                      <span className="material-symbols-outlined text-slate-400 text-[18px]">draft</span>
+                      <span className="font-semibold text-slate-700 text-xs truncate max-w-[150px]">{file.name}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+                        className="text-slate-400 hover:text-red-500 flex items-center"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">close</span>
+                      </button>
+                    </div>
+                  ))}
+                  {attachments.length === 0 && <span className="text-slate-400 italic text-sm">Nenhum arquivo anexado</span>}
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100">
             <label className="block">
               <span className="text-sm font-bold text-slate-700 uppercase tracking-widest block mb-4">Corpo do Documento *</span>
               <textarea
@@ -243,8 +268,14 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
                 disabled={isLocked}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
+                onBlur={() => {
+                  if (content !== initialContentRef.current) {
+                    logAction('Modificou o texto base oficial do documento');
+                    initialContentRef.current = content; // Update baseline tracking limit
+                  }
+                }}
                 className="block w-full rounded-2xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-6 px-6 h-96 font-serif bg-slate-50 shadow-inner leading-relaxed disabled:opacity-70 disabled:bg-slate-100"
-                placeholder="O texto oficial aparece aqui. Você pode redigi-lo manualmente ou usar o Gerador com IA acima."
+                placeholder="O texto oficial aparece aqui. Redija-o manualmente."
               />
             </label>
           </div>
@@ -260,6 +291,44 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
           </button>
         </div>
       </form>
+
+      {/* Controle de Edições */}
+      <div className="mt-8 bg-transparent rounded-none border-t-2 border-slate-200/50 pt-8 mb-4">
+          <div className="flex items-center gap-2 mb-6 px-2">
+              <span className="material-symbols-outlined text-slate-500">history</span>
+              <h3 className="font-bold text-slate-800 text-sm">Controle de Edições e Rastreabilidade</h3>
+          </div>
+          <div className="px-2">
+              <div className="space-y-4">
+                  {localHistory.map((entry) => (
+                      <div key={entry.id} className="flex gap-4 items-start">
+                          <div className="mt-0.5 shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm relative overflow-hidden">
+                                  {entry.action.toLowerCase().includes('criado') && <span className="material-symbols-outlined text-[16px] text-green-600">note_add</span>}
+                                  {entry.action.toLowerCase().includes('upload') && <span className="material-symbols-outlined text-[16px] text-blue-600">upload_file</span>}
+                                  {entry.action.toLowerCase().includes('texto') && <span className="material-symbols-outlined text-[16px] text-purple-600">edit_note</span>}
+                                  {!entry.action.toLowerCase().match(/criado|upload|texto/) && <span className="material-symbols-outlined text-[16px] text-slate-600">history_edu</span>}
+                              </div>
+                          </div>
+                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1">
+                              <div className="flex justify-between items-start mb-1">
+                                <h4 className="text-sm font-bold text-slate-800">{entry.action}</h4>
+                                <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">{entry.time}</span>
+                              </div>
+                              <p className="text-sm text-slate-600 leading-relaxed">
+                                  Por <strong>{entry.userName}</strong>, {entry.userRole}, no dia {entry.date}.
+                              </p>
+                          </div>
+                      </div>
+                  ))}
+                  {localHistory.length === 0 && (
+                      <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-sm italic">
+                          Ainda não há histórico associado.
+                      </div>
+                  )}
+              </div>
+          </div>
+      </div>
     </div>
   );
 };
