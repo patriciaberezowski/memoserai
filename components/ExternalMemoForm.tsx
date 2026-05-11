@@ -26,6 +26,12 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
     const [subject, setSubject] = useState('');
     const [deadline, setDeadline] = useState('');
     const [receiptDate, setReceiptDate] = useState('');
+    const [receiptTime, setReceiptTime] = useState(initialData?.receiptTime || '');
+    const [receiverName, setReceiverName] = useState(initialData?.receiverName || '');
+    const [needsReply, setNeedsReply] = useState(initialData?.needsReply || false);
+    const [internalDeadline, setInternalDeadline] = useState(formatDateForInput(initialData?.internalDeadline || '') || '');
+    const [responsibleUsers, setResponsibleUsers] = useState<string[]>(initialData?.responsibleUsers || []);
+    const [newResponsible, setNewResponsible] = useState('');
     const [linkedMemo, setLinkedMemo] = useState('');
     const [status, setStatus] = useState(initialData?.status || 'PENDENTE');
     const [file, setFile] = useState<File | null>(null);
@@ -62,6 +68,11 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
             setSubject(initialData.subject || '');
             setDeadline(formatDateForInput(initialData.deadline) || '');
             setReceiptDate(formatDateForInput(initialData.receiptDate || '') || '');
+            setReceiptTime(initialData.receiptTime || '');
+            setReceiverName(initialData.receiverName || '');
+            setNeedsReply(initialData.needsReply || false);
+            setInternalDeadline(formatDateForInput(initialData.internalDeadline || '') || '');
+            setResponsibleUsers(initialData.responsibleUsers || []);
             setLinkedMemo(initialData.linkedMemo || '');
             setStatus(initialData.status || 'PENDENTE');
         }
@@ -83,6 +94,11 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
             initialData.recipient = recipient;
             initialData.subject = subject;
             initialData.receiptDate = receiptDate;
+            initialData.receiptTime = receiptTime;
+            initialData.receiverName = receiverName;
+            initialData.needsReply = needsReply;
+            initialData.internalDeadline = internalDeadline;
+            initialData.responsibleUsers = responsibleUsers;
             initialData.status = status;
             initialData.attachments = attachments.map(f => ({ name: f.name }));
             initialData.history = localHistory;
@@ -131,14 +147,38 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
                                     />
                                 </label>
 
+                                <div className="grid grid-cols-2 gap-4">
+                                    <label className="block">
+                                        <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Data Rec. *</span>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={receiptDate}
+                                            onChange={(e) => setReceiptDate(e.target.value)}
+                                            className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3"
+                                        />
+                                    </label>
+                                    <label className="block">
+                                        <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Hora Rec. *</span>
+                                        <input
+                                            type="time"
+                                            required
+                                            value={receiptTime}
+                                            onChange={(e) => setReceiptTime(e.target.value)}
+                                            className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3"
+                                        />
+                                    </label>
+                                </div>
+
                                 <label className="block">
-                                    <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Data de Recebimento *</span>
+                                    <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Recebido por *</span>
                                     <input
-                                        type="date"
+                                        type="text"
                                         required
-                                        value={receiptDate}
-                                        onChange={(e) => setReceiptDate(e.target.value)}
+                                        value={receiverName}
+                                        onChange={(e) => setReceiverName(e.target.value)}
                                         className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3"
+                                        placeholder="Nome de quem recebeu o documento"
                                     />
                                 </label>
 
@@ -218,15 +258,87 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
                                 </label>
 
                                 <label className="block">
-                                    <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Prazo para Resposta *</span>
-                                    <input
-                                        type="date"
-                                        required
-                                        value={deadline}
-                                        onChange={(e) => setDeadline(e.target.value)}
-                                        className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3"
-                                    />
+                                    <span className="text-sm font-bold text-slate-700 uppercase tracking-widest mb-2 block">Responsável(is) pelo Tratamento</span>
+                                    <div className="flex gap-2 mb-2">
+                                        <input
+                                            type="text"
+                                            value={newResponsible}
+                                            onChange={(e) => setNewResponsible(e.target.value)}
+                                            className="flex-1 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3"
+                                            placeholder="Nome do servidor responsável"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    if (newResponsible.trim()) {
+                                                        setResponsibleUsers(prev => [...prev, newResponsible.trim()]);
+                                                        setNewResponsible('');
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (newResponsible.trim()) {
+                                                    setResponsibleUsers(prev => [...prev, newResponsible.trim()]);
+                                                    setNewResponsible('');
+                                                }
+                                            }}
+                                            className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center transition-colors"
+                                        >
+                                            <span className="material-symbols-outlined text-[20px]">add</span>
+                                        </button>
+                                    </div>
+                                    {responsibleUsers.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            {responsibleUsers.map((user, idx) => (
+                                                <div key={idx} className="flex items-center gap-1 bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-semibold">
+                                                    {user}
+                                                    <button type="button" onClick={() => setResponsibleUsers(prev => prev.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-red-500 flex items-center">
+                                                        <span className="material-symbols-outlined text-[16px]">close</span>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </label>
+
+                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-4">
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={needsReply}
+                                            onChange={(e) => setNeedsReply(e.target.checked)}
+                                            className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary"
+                                        />
+                                        <span className="text-sm font-bold text-slate-800">Este documento exige resposta?</span>
+                                    </label>
+
+                                    {needsReply && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+                                            <label className="block">
+                                                <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">Prazo Interno *</span>
+                                                <input
+                                                    type="date"
+                                                    required={needsReply}
+                                                    value={internalDeadline}
+                                                    onChange={(e) => setInternalDeadline(e.target.value)}
+                                                    className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-2.5"
+                                                />
+                                            </label>
+                                            <label className="block">
+                                                <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">Prazo Resposta *</span>
+                                                <input
+                                                    type="date"
+                                                    required={needsReply}
+                                                    value={deadline}
+                                                    onChange={(e) => setDeadline(e.target.value)}
+                                                    className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-2.5"
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

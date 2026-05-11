@@ -62,6 +62,11 @@ export interface Memo {
 
   // Novos campos Internos e Externos Adicionais
   receiptDate?: string;
+  receiptTime?: string;
+  receiverName?: string;
+  needsReply?: boolean;
+  internalDeadline?: string;
+  responsibleUsers?: string[];
   recipientName?: string;
   recipientRole?: string;
   responsibleArea?: string;

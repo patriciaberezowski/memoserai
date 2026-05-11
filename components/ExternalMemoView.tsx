@@ -113,18 +113,42 @@ const ExternalMemoView: React.FC<ExternalMemoViewProps> = ({ memo, setView, setS
                             <p className="font-medium text-slate-700">{memo.date}</p>
                         </div>
                         <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Data de Recebimento</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Data/Hora de Recebimento</p>
                             <p className="font-medium text-slate-700">
-                                {memo.receiptDate || <span className="text-slate-400 italic">Não informada</span>}
+                                {memo.receiptDate ? `${memo.receiptDate} ${memo.receiptTime ? `às ${memo.receiptTime}` : ''}` : <span className="text-slate-400 italic">Não informada</span>}
                             </p>
                         </div>
                         <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Prazo para Resposta</p>
-                            <p className="font-medium text-slate-700 flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[18px] text-slate-400">event</span>
-                                {memo.deadline}
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Recebido por</p>
+                            <p className="font-medium text-slate-700">
+                                {memo.receiverName || <span className="text-slate-400 italic">Não informado</span>}
                             </p>
                         </div>
+                        {memo.needsReply ? (
+                            <>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Prazo Interno</p>
+                                    <p className="font-medium text-slate-700 flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-[18px] text-slate-400">event</span>
+                                        {memo.internalDeadline || <span className="text-slate-400 italic">Não definido</span>}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Prazo Resposta (Destino)</p>
+                                    <p className="font-medium text-slate-700 flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-[18px] text-slate-400">event</span>
+                                        {memo.deadline || <span className="text-slate-400 italic">Não definido</span>}
+                                    </p>
+                                </div>
+                            </>
+                        ) : (
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Prazos</p>
+                                <p className="font-medium text-slate-400 italic">
+                                    Não exige resposta
+                                </p>
+                            </div>
+                        )}
                         <div>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Secretaria Emissora</p>
                             <p className="font-medium text-slate-700 flex items-center gap-2">
@@ -134,7 +158,19 @@ const ExternalMemoView: React.FC<ExternalMemoViewProps> = ({ memo, setView, setS
                         </div>
                         <div>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Destinatário Interno</p>
-                            <p className="font-medium text-slate-700">{memo.recipient}</p>
+                            <p className="font-medium text-slate-700 mb-2">{memo.recipient}</p>
+                            {memo.responsibleUsers && memo.responsibleUsers.length > 0 && (
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Responsáveis</p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {memo.responsibleUsers.map((user, idx) => (
+                                            <span key={idx} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-semibold">
+                                                {user}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Memo Vinculado</p>
@@ -149,19 +185,87 @@ const ExternalMemoView: React.FC<ExternalMemoViewProps> = ({ memo, setView, setS
                     </div>
 
                     <div className="mt-8 pt-8 border-t border-slate-100">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">PDF do Memorando</p>
-                        <div className="w-full h-48 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-center gap-3">
-                            <span className="material-symbols-outlined text-4xl text-slate-300">picture_as_pdf</span>
-                            <p className="text-slate-500 font-medium text-sm">Previa indisponível.</p>
-                            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Arquivos e Anexos</p>
+                        
+                        {/* PDF Principal */}
+                        <div className="mb-6 border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-red-100 p-3 rounded-xl flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-red-600 text-2xl">picture_as_pdf</span>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-900">{memo.fileName || 'Memorando_Assinado.pdf'}</p>
+                                    <p className="text-xs text-slate-500">Documento Principal (Oficial)</p>
+                                </div>
+                            </div>
+                            <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors w-full md:w-auto">
                                 <span className="material-symbols-outlined text-[18px]">download</span>
-                                Baixar Arquivo PDF
+                                Baixar
                             </button>
                         </div>
+
+                        {/* Anexos Adicionais */}
+                        {memo.attachments && memo.attachments.length > 0 && (
+                            <div>
+                                <p className="text-xs font-bold text-slate-500 mb-3">Anexos Complementares ({memo.attachments.length})</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {memo.attachments.map((file, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 border border-slate-200 rounded-xl bg-white shadow-sm">
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <span className="material-symbols-outlined text-slate-400 text-xl shrink-0">draft</span>
+                                                <span className="text-sm font-semibold text-slate-700 truncate">{file.name}</span>
+                                            </div>
+                                            <button className="text-primary hover:text-red-700 flex items-center shrink-0 ml-2">
+                                                <span className="material-symbols-outlined text-[18px]">download</span>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                 </div>
             </div>
+
+            {/* Controle de Edições */}
+            <div className="mt-8 bg-transparent rounded-none border-t-2 border-slate-200/50 pt-8 mb-4">
+                <div className="flex items-center gap-2 mb-6 px-2">
+                    <span className="material-symbols-outlined text-slate-500">history</span>
+                    <h3 className="font-bold text-slate-800 text-sm">Controle de Edições e Rastreabilidade</h3>
+                </div>
+                <div className="px-2">
+                    <div className="space-y-4">
+                        {(memo.history || []).map((entry) => (
+                            <div key={entry.id} className="flex gap-4 items-start">
+                                <div className="mt-0.5 shrink-0">
+                                    <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm relative overflow-hidden">
+                                        {entry.action.toLowerCase().includes('criado') && <span className="material-symbols-outlined text-[16px] text-green-600">note_add</span>}
+                                        {entry.action.toLowerCase().includes('upload') && <span className="material-symbols-outlined text-[16px] text-blue-600">upload_file</span>}
+                                        {entry.action.toLowerCase().includes('texto') && <span className="material-symbols-outlined text-[16px] text-purple-600">edit_note</span>}
+                                        {!entry.action.toLowerCase().match(/criado|upload|texto/) && <span className="material-symbols-outlined text-[16px] text-slate-600">history_edu</span>}
+                                    </div>
+                                </div>
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <h4 className="text-sm font-bold text-slate-800">{entry.action}</h4>
+                                        <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">{entry.time}</span>
+                                    </div>
+                                    <p className="text-sm text-slate-600 leading-relaxed">
+                                        Por <strong>{entry.userName}</strong>, {entry.userRole}, no dia {entry.date}.
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                        {(!memo.history || memo.history.length === 0) && (
+                            <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-sm italic">
+                                Ainda não há histórico associado.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            
         </div>
     );
 };

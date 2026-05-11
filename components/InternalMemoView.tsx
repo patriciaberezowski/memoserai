@@ -267,6 +267,45 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
                 </div>
 
             </div>
+
+            {/* Controle de Edições */}
+            <div className="mt-8 bg-transparent rounded-none border-t-2 border-slate-200/50 pt-8 mb-4">
+                <div className="flex items-center gap-2 mb-6 px-2">
+                    <span className="material-symbols-outlined text-slate-500">history</span>
+                    <h3 className="font-bold text-slate-800 text-sm">Controle de Edições e Rastreabilidade</h3>
+                </div>
+                <div className="px-2">
+                    <div className="space-y-4">
+                        {(memo.history || []).map((entry) => (
+                            <div key={entry.id} className="flex gap-4 items-start">
+                                <div className="mt-0.5 shrink-0">
+                                    <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm relative overflow-hidden">
+                                        {entry.action.toLowerCase().includes('criado') && <span className="material-symbols-outlined text-[16px] text-green-600">note_add</span>}
+                                        {entry.action.toLowerCase().includes('upload') && <span className="material-symbols-outlined text-[16px] text-blue-600">upload_file</span>}
+                                        {entry.action.toLowerCase().includes('texto') && <span className="material-symbols-outlined text-[16px] text-purple-600">edit_note</span>}
+                                        {!entry.action.toLowerCase().match(/criado|upload|texto/) && <span className="material-symbols-outlined text-[16px] text-slate-600">history_edu</span>}
+                                    </div>
+                                </div>
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <h4 className="text-sm font-bold text-slate-800">{entry.action}</h4>
+                                        <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">{entry.time}</span>
+                                    </div>
+                                    <p className="text-sm text-slate-600 leading-relaxed">
+                                        Por <strong>{entry.userName}</strong>, {entry.userRole}, no dia {entry.date}.
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                        {(!memo.history || memo.history.length === 0) && (
+                            <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-sm italic">
+                                Ainda não há histórico associado.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
         </div>
     );
 };
