@@ -11,19 +11,23 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [loginError, setLoginError] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoginError(false);
         setIsLoading(true);
-        // Simulate network request
-        setTimeout(() => {
-            setIsLoading(false);
-            if (email.trim().toLowerCase() === 'serai.marica@gmail.com' && password.trim() === '#B3r3z0wsk1') {
-                onLogin();
-            } else {
-                setLoginError(true);
-            }
-        }, 800);
+
+        const { error } = await supabase.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password,
+        });
+
+        setIsLoading(false);
+        if (error) {
+            setLoginError(true);
+            return;
+        }
+
+        onLogin();
     };
 
     return (
@@ -137,7 +141,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
                             {loginError && (
                                 <div className="text-red-400 text-sm text-center font-medium bg-red-500/10 p-2 rounded-lg border border-red-500/20">
-                                    E-mail ou senha incorretos.
+                                    E-mail ou senha incorretos ou usuário não cadastrado no Supabase.
                                 </div>
                             )}
 

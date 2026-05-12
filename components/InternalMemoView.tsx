@@ -62,11 +62,11 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
         element.classList.remove('hidden');
 
         const opt = {
-            margin: [0, 0, 0, 0], // The margins are simulated by padding inside the HTML container
+            margin: [0, 0, 0, 0] as [number, number, number, number], // The margins are simulated by padding inside the HTML container
             filename: `Memorando_${memo.processNumber ? memo.processNumber.replace(/\//g, '-') : 'Rascunho'}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
+            image: { type: 'jpeg' as const, quality: 0.98 },
             html2canvas: { scale: 2 },
-            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: 'pt' as const, format: 'a4', orientation: 'portrait' as const }
         };
 
         try {
@@ -103,7 +103,9 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
                         yPos += 10;
                     });
                 }
-            }).save();
+            });
+
+            await worker.save();
         } catch (error) {
             console.error("Erro ao gerar PDF:", error);
             alert("Ocorreu um erro ao gerar o PDF.");

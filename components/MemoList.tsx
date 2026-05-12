@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Memo, AppView, AppViewAlias } from '../types';
 import html2pdf from 'html2pdf.js';
+import { listMemos, saveMemo } from '../services/memoRepository';
 
 interface MemoListProps {
   type?: 'INTERNO' | 'EXTERNO' | 'EXTRA';
@@ -9,54 +10,43 @@ interface MemoListProps {
   setSelectedMemo?: (memo: Memo | null) => void;
 }
 
-const mockInternalMemos: Memo[] = [
-  { id: '1', processNumber: '043/2026', year: '2026', subject: 'Solicitação de pauta publicitária', type: 'INTERNO', status: 'RESOLVIDO', date: '12/02/2026', deadline: '20/02/2026', sender: 'ASCOM', recipient: 'Secretaria de Comunicação', institution: 'SERAI', content: '', responsibleArea: 'ASCOM', signer: 'Patrícia Berezowski', category: 'Demanda', hasSignedPdf: true },
-  { id: '2', processNumber: '', year: '2026', subject: 'Aprovação de orçamento prévio para folheto', type: 'INTERNO', status: 'RASCUNHO', date: '14/02/2026', deadline: '25/02/2026', sender: 'Gabinete', recipient: 'Secretaria de Turismo', institution: 'SERAI', content: '', responsibleArea: 'Gabinete', signer: 'Maria Souza', category: 'Demanda', hasSignedPdf: false },
-  { id: '3', processNumber: '057/2026', year: '2026', subject: 'Informativo sobre novo plano', type: 'INTERNO', status: 'ASSINADO', date: '10/02/2026', deadline: '', sender: 'ASCOM', recipient: 'Codemar', institution: 'SERAI', content: '', responsibleArea: 'ASCOM', signer: 'Patrícia Berezowski', category: 'Informativo', hasSignedPdf: true },
-  { id: '6', processNumber: '058/2026', year: '2026', subject: 'Convite para reunião', type: 'INTERNO', status: 'PENDENTE', date: '21/02/2026', deadline: '28/02/2026', sender: 'TIC', recipient: 'Gabinete', institution: 'SERAI', content: '', responsibleArea: 'TIC', category: 'Demanda', hasSignedPdf: false },
-  { id: '7', processNumber: '059/2026', year: '2026', subject: 'Ata de Reunião', type: 'INTERNO', status: 'DOWNLOAD', date: '22/02/2026', deadline: '', sender: 'Jurídico', recipient: 'ASCOM', institution: 'SERAI', content: '', responsibleArea: 'Jurídico', category: 'Informativo', hasSignedPdf: false },
-  {
-    id: '8',
-    processNumber: '',
-    year: '2026',
-    subject: 'Solicitação complementar para confecção de crachás institucionais',
-    type: 'INTERNO',
-    status: 'RASCUNHO',
-    date: '07/01/2026',
-    deadline: '31/03/2026',
-    sender: 'SERAI',
-    recipient: 'SECOM',
-    institution: 'SERAI',
-    linkedMemo: 'Memorando 003/2026',
-    content: 'Em complemento ao Memorando anteriormente encaminhado referente à solicitação de materiais institucionais, a Secretaria de Representação e Articulação Institucional (SERAI) informa a necessidade de confecção de mais 03 (três) crachás institucionais, conforme padrão visual adotado pela Prefeitura de Maricá.\n\nOs crachás deverão conter:\n- Nome completo\n- Número de matrícula\n- Fotografia institucional\n\nRelação de Servidoras:\n\nNOME COMPLETO                                    | MATRÍCULA\n-------------------------------------------------|-----------\nMaria Eduarda da Cunha Costa                     | 115 984\nMariana Ramalho de Jesus                         | 116 001\nTais de Oliveira Rodrigues Silva                 | 116 000\n\nAs fotografias e demais informações necessárias para a confecção estarão disponíveis por meio de link compartilhado via OneDrive, o qual será encaminhado a essa Secretaria para acesso.\n\nSolicitamos, por gentileza, a confirmação do recebimento e a previsão de prazo para produção e entrega dos referidos itens.\n\nReiteramos nossos agradecimentos pela parceria e colaboração de sempre.',
-    responsibleArea: 'ASCOM',
-    category: 'Demanda',
-    signer: 'Ivana Cristina de Melo Moura',
-    signerRole: 'Secretária de Representação e Articulação Institucional',
-    recipientName: 'Keffin Gracher',
-    recipientRole: 'Secretário de Comunicação Social',
-    hasSignedPdf: false
-  },
-];
-
-const mockExternalMemos: Memo[] = [
-  { id: '4', processNumber: '003/2026', year: '2026', subject: 'Informações sobre cartões de visitas', type: 'EXTERNO', status: 'PENDENTE', date: '15/02/2026', deadline: '23/02/2026', sender: 'SECOM', recipient: 'ASCOM', institution: 'SECOM', content: '', hasSignedPdf: true },
-  { id: '5', processNumber: '042/2026', year: '2026', subject: 'Levantamento de sistemas para contratação', type: 'EXTERNO', status: 'CONCLUIDO', date: '10/02/2026', deadline: '28/02/2026', sender: 'CODEMAR', recipient: 'Gabinete', institution: 'CODEMAR', content: '', hasSignedPdf: true },
-];
-
-const mockExtraMemos: Memo[] = [
-  { id: '100', processNumber: '58A/2026/SERAI/PMM', year: '2026', subject: 'Ata de registro extra', type: 'EXTRA', status: 'PENDENTE', date: '12/05/2026', deadline: '20/05/2026', sender: 'SERAI', recipient: 'SECOM', institution: 'SERAI', content: '', responsibleArea: 'Gabinete', signer: 'Ivana Cristina de Melo Moura', category: 'Demanda', hasSignedPdf: true },
-];
-
 const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelectedMemo }) => {
   const isKpiMode = !!kpiFilter;
   const isExternal = type === 'EXTERNO';
   const isExtra = type === 'EXTRA';
+  const [allMemos, setAllMemos] = useState<Memo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = async () => {
+      setIsLoading(true);
+      setLoadError('');
+
+      try {
+        const memos = await listMemos();
+        if (isMounted) setAllMemos(memos);
+      } catch (error) {
+        console.error('Erro ao carregar memorandos:', error);
+        if (isMounted) setLoadError('Não foi possível carregar os memorandos do Supabase.');
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Base list depending on origin
   let baseMemos: Memo[] = [];
   if (isKpiMode) {
-    baseMemos = [...mockInternalMemos, ...mockExternalMemos, ...mockExtraMemos];
+    baseMemos = allMemos;
     if (kpiFilter === 'RECEIVED') {
       baseMemos = baseMemos.filter(m => m.type === 'EXTERNO');
     } else if (kpiFilter === 'SENT') {
@@ -81,7 +71,7 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
       });
     }
   } else {
-    baseMemos = isExternal ? mockExternalMemos : isExtra ? mockExtraMemos : mockInternalMemos;
+    baseMemos = allMemos.filter(m => m.type === (isExternal ? 'EXTERNO' : isExtra ? 'EXTRA' : 'INTERNO'));
   }
 
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -452,6 +442,11 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
       )}
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-visible min-h-[400px]">
+        {loadError && (
+          <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {loadError}
+          </div>
+        )}
         <div className="overflow-visible">
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[11px] font-bold tracking-wider">
@@ -473,7 +468,15 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredMemos.map((memo) => (
+              {isLoading && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                    Carregando memorandos...
+                  </td>
+                </tr>
+              )}
+
+              {!isLoading && filteredMemos.map((memo) => (
                 <tr key={memo.id} className="hover:bg-slate-50 transition-colors group">
                   <td className="px-6 py-4 font-black text-slate-900">
                     {memo.processNumber || <span className="text-slate-400 font-normal italic text-[11px] uppercase tracking-wider bg-slate-100 py-1 px-2 rounded-md">Sem Número</span>}
@@ -598,6 +601,18 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
                                 isNewOfficial = true;
                               }
 
+                              if (isNewOfficial) {
+                                try {
+                                  const savedMemo = await saveMemo(updatedMemo);
+                                  setAllMemos(prev => prev.map(item => item.id === savedMemo.id ? savedMemo : item));
+                                  updatedMemo = savedMemo;
+                                } catch (error) {
+                                  console.error('Erro ao atualizar memorando:', error);
+                                  alert('Não foi possível atualizar o memorando no Supabase antes do download.');
+                                  return;
+                                }
+                              }
+
                               if (setSelectedMemo) {
                                 setSelectedMemo(updatedMemo);
                               }
@@ -642,7 +657,7 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
                 </tr>
               ))}
 
-              {filteredMemos.length === 0 && (
+              {!isLoading && filteredMemos.length === 0 && (
                 <tr>
                   <td colSpan={isExternal ? 6 : 8} className="px-6 py-12 text-center text-slate-500">
                     Nenhum memorando encontrado.

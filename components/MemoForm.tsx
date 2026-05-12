@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Memo, AppView, AppViewAlias, MemoHistoryEntry } from '../types';
 import { INITIAL_SECRETARIAS } from './mockSecretarias';
 import { INITIAL_AUTARQUIAS, INITIAL_USUARIOS, INITIAL_AREAS } from './mockData';
+import { saveMemo } from '../services/memoRepository';
 
 interface MemoFormProps {
   initialData?: Memo | null;
@@ -38,6 +39,7 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
 
   const [content, setContent] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   
   const [localHistory, setLocalHistory] = useState<MemoHistoryEntry[]>(initialData?.history || []);
   const initialContentRef = useRef(initialData?.content || initialData?.body || '');
@@ -88,7 +90,7 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
     }
   }, [isEdit, initialData]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content) {
       return alert('O texto do memorando não pode estar vazio.');
@@ -107,17 +109,42 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
     const legacyRecipientName = destinos.map(d => d.nome).join(', ');
     const legacyRecipientRole = destinos.map(d => d.cargo).join(', ');
 
-    console.log('Memorando Interno Salvo:', {
-      date, 
+    const formatDate = (d: string) => d ? d.split('-').reverse().join('/') : '';
+
+    const newMemo: Memo = {
+      id: isEdit && initialData ? initialData.id : Math.random().toString(36).substr(2, 9),
+      processNumber: isEdit && initialData ? initialData.processNumber : '',
+      date: formatDate(date),
       destinos,
-      recipient: legacyRecipient, 
-      recipientName: legacyRecipientName, 
-      recipientRole: legacyRecipientRole, 
-      subject, deadline, responsibleArea, signer, category, content, attachments, history: localHistory
-    });
-    
-    alert(isEdit ? 'Rascunho atualizado!' : 'Memorando Interno Criado com Sucesso!');
-    if (setView) setView(AppViewAlias.INTERNAL_MEMOS);
+      recipient: legacyRecipient,
+      recipientName: legacyRecipientName,
+      recipientRole: legacyRecipientRole,
+      subject,
+      deadline: formatDate(deadline),
+      sender: responsibleArea,
+      responsibleArea,
+      signer,
+      category,
+      content,
+      attachments: attachments.map(file => ({ name: file.name })),
+      history: localHistory,
+      type: 'INTERNO',
+      status: status || 'PENDENTE',
+      institution: 'SERAI',
+      year: new Date().getFullYear().toString()
+    };
+
+    try {
+      setIsSaving(true);
+      await saveMemo(newMemo);
+      alert(isEdit ? 'Rascunho atualizado no Supabase!' : 'Memorando Interno criado e salvo no Supabase!');
+      if (setView) setView(AppViewAlias.INTERNAL_MEMOS);
+    } catch (error) {
+      console.error('Erro ao salvar memorando interno:', error);
+      alert('Não foi possível salvar o memorando no Supabase. Verifique o login e tente novamente.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddDestino = () => {
@@ -402,9 +429,9 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
           <button type="button" onClick={() => setView && setView(AppViewAlias.INTERNAL_MEMOS)} className="text-slate-400 font-bold text-xs uppercase hover:text-slate-700 transition-all">
             Cancelar
           </button>
-          <button type="submit" className="px-8 py-3 rounded-xl bg-primary text-white font-black text-xs uppercase shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center gap-2">
+          <button type="submit" disabled={isSaving} className="px-8 py-3 rounded-xl bg-primary text-white font-black text-xs uppercase shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center gap-2 disabled:opacity-60">
             <span className="material-symbols-outlined text-lg">save</span>
-            {isEdit ? 'Salvar Rascunho' : 'Criar Memorando'}
+            {isSaving ? 'Salvando...' : isEdit ? 'Salvar Rascunho' : 'Criar Memorando'}
           </button>
         </div>
       </form>

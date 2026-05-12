@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -20,6 +20,7 @@ import AreasRegister from './components/AreasRegister';
 import SignersRegister from './components/SignersRegister';
 import Login from './components/Login';
 import { AppView, AppViewAlias, Memo } from './types';
+import { supabase } from './services/supabaseClient';
 
 const PlaceholderView: React.FC<{ title: string }> = ({ title }) => (
   <div className="p-8 flex flex-col items-center justify-center h-full text-center">
@@ -35,8 +36,22 @@ const PlaceholderView: React.FC<{ title: string }> = ({ title }) => (
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [currentView, setView] = useState<AppView>(AppView.DASHBOARD);
   const [selectedMemo, setSelectedMemo] = useState<Memo | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setIsAuthenticated(!!data.session);
+      setIsCheckingSession(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   const renderContent = () => {
     switch (currentView) {
@@ -139,6 +154,17 @@ const App: React.FC = () => {
       default: return 'Painel de Controle';
     }
   };
+
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center font-sans">
+        <div className="flex items-center gap-3 text-sm font-bold uppercase tracking-widest text-slate-300">
+          <span className="material-symbols-outlined animate-spin">refresh</span>
+          Verificando acesso
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;

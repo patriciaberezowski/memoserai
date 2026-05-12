@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Memo, AppView, AppViewAlias, MemoHistoryEntry } from '../types';
 import { INITIAL_AREAS } from './mockData';
 import { INITIAL_SECRETARIAS as mockSecretarias } from './mockSecretarias';
+import { saveMemo } from '../services/memoRepository';
 
 interface ExtraMemoFormProps {
     initialData?: Memo | null;
@@ -38,6 +39,7 @@ const ExtraMemoForm: React.FC<ExtraMemoFormProps> = ({ initialData, isEdit = fal
 
     const [files, setFiles] = useState<{ name: string }[]>([]);
     const [attachments, setAttachments] = useState<{ name: string }[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
     
     const [history, setHistory] = useState<MemoHistoryEntry[]>([]);
 
@@ -109,7 +111,7 @@ const ExtraMemoForm: React.FC<ExtraMemoFormProps> = ({ initialData, isEdit = fal
 
     const handleFileDrop = (e: React.DragEvent<HTMLDivElement>, isMainFile: boolean) => {
         e.preventDefault();
-        const droppedFiles = Array.from(e.dataTransfer.files);
+        const droppedFiles = Array.from(e.dataTransfer.files) as File[];
         if (droppedFiles.length > 0) {
             if (isMainFile) {
                 setFiles([{ name: droppedFiles[0].name }]);
@@ -121,7 +123,7 @@ const ExtraMemoForm: React.FC<ExtraMemoFormProps> = ({ initialData, isEdit = fal
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, isMainFile: boolean) => {
         if (e.target.files && e.target.files.length > 0) {
-            const selectedFiles = Array.from(e.target.files);
+            const selectedFiles = Array.from(e.target.files) as File[];
             if (isMainFile) {
                 setFiles([{ name: selectedFiles[0].name }]);
             } else {
@@ -130,7 +132,7 @@ const ExtraMemoForm: React.FC<ExtraMemoFormProps> = ({ initialData, isEdit = fal
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!processNumber || !date || !subject || !responsibleArea) {
             alert('Por favor, preencha os campos obrigatórios: Número, Data, Remetente e Assunto.');
             return;
@@ -149,9 +151,46 @@ const ExtraMemoForm: React.FC<ExtraMemoFormProps> = ({ initialData, isEdit = fal
         const updatedHistory = [newHistoryEntry, ...history];
         setHistory(updatedHistory);
 
-        alert(`Memorando Extra ${isEdit ? 'atualizado' : 'registrado'} com sucesso!`);
-        if (setView) {
-            setView(AppViewAlias.EXTRA_MEMOS);
+        const newMemo: Memo = {
+            id: isEdit && initialData ? initialData.id : Math.random().toString(36).substr(2, 9),
+            processNumber,
+            date,
+            sender: responsibleArea,
+            recipient: destinos.map(d => d.orgao).join(', '),
+            subject,
+            deadline,
+            responsibleArea,
+            signer,
+            status,
+            destinos,
+            history: updatedHistory,
+            type: 'EXTRA',
+            institution: 'SERAI',
+            content: initialData?.content || '',
+            linkedMemo,
+            category: typeField as any,
+            year: date.split('-')[0] || new Date().getFullYear().toString(),
+            attachments: attachments.map(f => ({ name: f.name }))
+        };
+
+        if (files.length > 0) {
+            newMemo.hasSignedPdf = true;
+            newMemo.fileName = files[0].name;
+            newMemo.fileUrl = '#';
+        }
+
+        try {
+            setIsSaving(true);
+            await saveMemo(newMemo);
+            alert(`Memorando Extra ${isEdit ? 'atualizado' : 'registrado'} no Supabase!`);
+            if (setView) {
+                setView(AppViewAlias.EXTRA_MEMOS);
+            }
+        } catch (error) {
+            console.error('Erro ao salvar memorando extra:', error);
+            alert('Não foi possível salvar o memorando no Supabase. Verifique o login e tente novamente.');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -175,9 +214,10 @@ const ExtraMemoForm: React.FC<ExtraMemoFormProps> = ({ initialData, isEdit = fal
                     </button>
                     <button
                         onClick={handleSave}
-                        className="px-6 py-2 text-sm font-bold text-white bg-primary rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-primary/20"
+                        disabled={isSaving}
+                        className="px-6 py-2 text-sm font-bold text-white bg-primary rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-primary/20 disabled:opacity-60"
                     >
-                        {isEdit ? 'Atualizar Documento' : 'Registrar Documento'}
+                        {isSaving ? 'Salvando...' : isEdit ? 'Atualizar Documento' : 'Registrar Documento'}
                     </button>
                 </div>
             </div>

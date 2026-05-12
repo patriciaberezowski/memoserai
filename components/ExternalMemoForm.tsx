@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Memo, AppView, AppViewAlias, MemoHistoryEntry } from '../types';
 import { INITIAL_SECRETARIAS } from './mockSecretarias';
 import { INITIAL_AUTARQUIAS } from './mockData';
+import { saveMemo } from '../services/memoRepository';
 
 interface ExternalMemoFormProps {
     initialData?: Memo | null;
@@ -39,6 +40,7 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
     const [status, setStatus] = useState(initialData?.status || 'PENDENTE');
     const [file, setFile] = useState<File | null>(null);
     const [attachments, setAttachments] = useState<File[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     const [localHistory, setLocalHistory] = useState<MemoHistoryEntry[]>(initialData?.history || []);
 
@@ -81,36 +83,53 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
         }
     }, [isEdit, initialData]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (isEdit && initialData) {
-            // Persist the file locally by mutating the mock object in memory.
-            if (file) {
-                initialData.hasSignedPdf = true;
-                initialData.fileName = file.name;
-                initialData.fileUrl = URL.createObjectURL(file);
-            }
-            // To be thorough, we can also mutate other fields
-            initialData.processNumber = number;
-            initialData.sender = sender;
-            initialData.recipient = recipient;
-            initialData.subject = subject;
-            initialData.receiptDate = receiptDate;
-            initialData.receiptTime = receiptTime;
-            initialData.receiverName = receiverName;
-            initialData.needsReply = needsReply;
-            initialData.internalDeadline = internalDeadline;
-            initialData.responsibleUsers = responsibleUsers;
-            initialData.status = status;
-            initialData.attachments = attachments.map(f => ({ name: f.name }));
-            initialData.history = localHistory;
+        const memoToSave: Memo = {
+            ...(initialData || {}),
+            id: isEdit && initialData ? initialData.id : Math.random().toString(36).substr(2, 9),
+            processNumber: number,
+            date,
+            sender,
+            recipient,
+            subject,
+            deadline,
+            receiptDate,
+            receiptTime,
+            receiverName,
+            needsReply,
+            internalDeadline,
+            responsibleUsers,
+            linkedMemo,
+            status,
+            content: initialData?.content || '',
+            attachments: attachments.map(f => ({ name: f.name })),
+            history: localHistory,
+            type: 'EXTERNO',
+            institution: senderType === 'Secretaria' ? sender : 'Autarquia',
+            year: new Date().getFullYear().toString()
+        };
+
+        if (file) {
+            memoToSave.hasSignedPdf = true;
+            memoToSave.fileName = file.name;
+            memoToSave.fileUrl = URL.createObjectURL(file);
         }
 
         logAction('Alterações manuais salvas no sistema');
 
-        alert(isEdit ? 'Alterações salvas com sucesso!' : 'Memorando Externo Registrado!');
-        if (setView) setView(AppViewAlias.EXTERNAL_MEMOS);
+        try {
+            setIsSaving(true);
+            await saveMemo(memoToSave);
+            alert(isEdit ? 'Alterações salvas no Supabase!' : 'Memorando Externo registrado no Supabase!');
+            if (setView) setView(AppViewAlias.EXTERNAL_MEMOS);
+        } catch (error) {
+            console.error('Erro ao salvar memorando externo:', error);
+            alert('Não foi possível salvar o memorando no Supabase. Verifique o login e tente novamente.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -468,9 +487,9 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
                         <button type="button" onClick={() => setView && setView(AppViewAlias.EXTERNAL_MEMOS)} className="px-6 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold text-xs uppercase hover:bg-slate-100 transition-all">
                             Cancelar
                         </button>
-                        <button type="submit" className="px-8 py-3 rounded-xl bg-primary text-white font-black text-xs uppercase shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center gap-2">
+                        <button type="submit" disabled={isSaving} className="px-8 py-3 rounded-xl bg-primary text-white font-black text-xs uppercase shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center gap-2 disabled:opacity-60">
                             <span className="material-symbols-outlined text-lg">save</span>
-                            {isEdit ? 'Salvar Alterações' : 'Cadastrar Memorando Recebido'}
+                            {isSaving ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Cadastrar Memorando Recebido'}
                         </button>
                     </div>
                 </form>

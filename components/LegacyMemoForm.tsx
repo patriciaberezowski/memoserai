@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { AppView, AppViewAlias } from '../types';
+import { AppView, AppViewAlias, Memo } from '../types';
 import { INITIAL_AREAS, INITIAL_AUTARQUIAS } from './mockData';
 import { INITIAL_SECRETARIAS } from './mockSecretarias';
+import { saveMemo } from '../services/memoRepository';
 
 interface LegacyMemoFormProps {
     setView: (view: AppView) => void;
@@ -16,11 +17,53 @@ const LegacyMemoForm: React.FC<LegacyMemoFormProps> = ({ setView }) => {
     const [recipientType, setRecipientType] = useState<'secretaria' | 'autarquia'>('secretaria');
     const [recipient, setRecipient] = useState('');
     const [recipientName, setRecipientName] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        alert('Memorando legado salvo com sucesso! (A integração com DB será feita no futuro)');
-        setView(AppViewAlias.INTERNAL_MEMOS);
+
+        const areaName = INITIAL_AREAS.find(area => area.id === responsibleArea)?.nome || responsibleArea;
+        const recipientNameResolved = recipientType === 'secretaria'
+            ? INITIAL_SECRETARIAS.find(sec => sec.id === recipient)?.pasta || recipient
+            : INITIAL_AUTARQUIAS.find(aut => aut.id === recipient)?.nome || recipient;
+
+        const memo: Memo = {
+            id: Math.random().toString(36).substr(2, 9),
+            processNumber,
+            date,
+            subject,
+            type: 'INTERNO',
+            status: 'ARQUIVADO',
+            deadline: '',
+            sender: areaName,
+            recipient: recipientNameResolved,
+            recipientName,
+            institution: 'SERAI',
+            content: '',
+            responsibleArea: areaName,
+            hasSignedPdf: true,
+            year: date.split('-')[0] || new Date().getFullYear().toString(),
+            history: [{
+                id: crypto.randomUUID(),
+                action: 'Cadastro retroativo de memorando legado',
+                date: new Date().toLocaleDateString('pt-BR'),
+                time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                userName: 'Patrícia Berezowski',
+                userRole: 'Administrador'
+            }]
+        };
+
+        try {
+            setIsSaving(true);
+            await saveMemo(memo);
+            alert('Memorando legado salvo no Supabase!');
+            setView(AppViewAlias.INTERNAL_MEMOS);
+        } catch (error) {
+            console.error('Erro ao salvar memorando legado:', error);
+            alert('Não foi possível salvar o memorando legado no Supabase. Verifique o login e tente novamente.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -211,9 +254,9 @@ const LegacyMemoForm: React.FC<LegacyMemoFormProps> = ({ setView }) => {
                     <button type="button" onClick={() => setView(AppViewAlias.INTERNAL_MEMOS)} className="px-6 py-3 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors tracking-widest uppercase">
                         CANCELAR
                     </button>
-                    <button type="submit" className="px-6 py-3 bg-primary text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 tracking-widest uppercase">
+                    <button type="submit" disabled={isSaving} className="px-6 py-3 bg-primary text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 tracking-widest uppercase disabled:opacity-60">
                         <span className="material-symbols-outlined text-[20px]">archive</span>
-                        SALVAR ARQUIVO LEGADO
+                        {isSaving ? 'SALVANDO...' : 'SALVAR ARQUIVO LEGADO'}
                     </button>
                 </div>
             </form>
