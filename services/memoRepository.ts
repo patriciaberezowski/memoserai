@@ -145,18 +145,21 @@ export const makeMemoOfficial = async (memo: Memo) => {
     return saveMemo({ ...memo, status: memo.status || 'BAIXADO' });
   }
 
-  const year = Number(toIsoDate(memo.date)?.slice(0, 4) || new Date().getFullYear());
+  const officialDate = new Date();
+  const officialDateIso = officialDate.toISOString().slice(0, 10);
+  const year = officialDate.getFullYear();
   const official = await getNextInternalMemoNumber(year);
 
   return saveMemo({
     ...memo,
     processNumber: official.processNumber,
+    date: officialDateIso,
     status: 'BAIXADO',
     history: [{
       id: crypto.randomUUID(),
       action: `Número oficial ${official.processNumber} gerado no download`,
-      date: new Date().toLocaleDateString('pt-BR'),
-      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      date: officialDate.toLocaleDateString('pt-BR'),
+      time: officialDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       userName: 'Patrícia Berezowski',
       userRole: 'Administrador',
     }, ...(memo.history || [])],
