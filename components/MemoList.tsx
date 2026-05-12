@@ -622,15 +622,52 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
                               element.classList.remove('hidden');
 
                               const opt = {
-                                margin: 0,
+                                margin: [0, 0, 96, 0] as [number, number, number, number],
                                 filename: `Memorando_${updatedMemo.processNumber ? updatedMemo.processNumber.replace(/\//g, '-') : 'Rascunho'}.pdf`,
                                 image: { type: 'jpeg' as const, quality: 0.98 },
-                                html2canvas: { scale: 2 },
-                                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const }
+                                html2canvas: { scale: 2, useCORS: true },
+                                jsPDF: { unit: 'pt' as const, format: 'a4', orientation: 'portrait' as const },
+                                pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-page-break', '.signature-block'] }
                               };
 
                               try {
-                                await html2pdf().from(element).set(opt).save();
+                                const worker = html2pdf().from(element).set(opt).toPdf();
+                                await worker.get('pdf').then((pdf: any) => {
+                                  const totalPages = pdf.internal.getNumberOfPages();
+                                  const footerText = [
+                                    "Sede Brasília – DF: SCN Quadra 06, Cj A, 6º andar, Shopping ID - 70716-900 – Brasília /DF",
+                                    "Sub sede Maricá/RJ: R. Álvares de Castro, 346 – Centro – 24.900-000 – Maricá/ RJ",
+                                    "Telefones: (21) 99675-2831/2637-3706 - Ramal: 4399 E-mail: serai@marica.rj.gov.br e pmadm@gmail.com",
+                                  ];
+
+                                  for (let i = 1; i <= totalPages; i++) {
+                                    pdf.setPage(i);
+                                    const pageWidth = pdf.internal.pageSize.getWidth();
+                                    const pageHeight = pdf.internal.pageSize.getHeight();
+                                    const footerTop = pageHeight - 92;
+                                    const centerText = (text: string, y: number) => {
+                                      const textWidth = pdf.getStringUnitWidth(text) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                                      pdf.text(text, (pageWidth - textWidth) / 2, y);
+                                    };
+
+                                    pdf.setDrawColor(0);
+                                    pdf.setLineWidth(0.5);
+                                    pdf.line(40, footerTop, pageWidth - 40, footerTop);
+                                    pdf.setFont("times", "normal");
+                                    pdf.setFontSize(8);
+                                    pdf.setTextColor(0, 0, 0);
+                                    centerText(footerText[0], footerTop + 12);
+                                    centerText(footerText[1], footerTop + 22);
+                                    pdf.setTextColor(0, 80, 180);
+                                    centerText(footerText[2], footerTop + 32);
+                                    pdf.setDrawColor(0, 80, 180);
+                                    pdf.setLineWidth(0.4);
+                                    pdf.line(190, footerTop + 37, pageWidth - 190, footerTop + 37);
+                                    pdf.setTextColor(0, 0, 0);
+                                    centerText(`${i} de ${totalPages}`, footerTop + 55);
+                                  }
+                                });
+                                await worker.save();
                               } catch (error) {
                                 console.error("Erro ao gerar PDF:", error);
                                 alert("Ocorreu um erro ao gerar o PDF.");
