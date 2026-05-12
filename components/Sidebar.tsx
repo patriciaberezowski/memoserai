@@ -36,7 +36,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
       icon: 'database',
       isGroup: true,
       items: [
-        { view: AppView.REGISTERS_DEPARTMENTS, icon: 'apartment', label: 'Secretarias / Autarquias' },
+        { view: AppView.REGISTERS_SECRETARIAS, icon: 'account_balance', label: 'Secretarias' },
+        { view: AppView.REGISTERS_AUTARQUIAS, icon: 'domain_add', label: 'Autarquias' },
         { view: AppView.REGISTERS_USERS, icon: 'group', label: 'Usuários' },
         { view: AppView.REGISTERS_AREAS, icon: 'domain', label: 'Áreas Internas' },
         { view: AppView.REGISTERS_SIGNERS, icon: 'history_edu', label: 'Signatários' },

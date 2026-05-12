@@ -17,7 +17,8 @@ export enum AppView {
   MEMOS_PENDING = 'MEMOS_PENDING',
   MEMOS_RESOLVED = 'MEMOS_RESOLVED',
   REPORTS = 'REPORTS',
-  REGISTERS_DEPARTMENTS = 'REGISTERS_DEPARTMENTS',
+  REGISTERS_SECRETARIAS = 'REGISTERS_SECRETARIAS',
+  REGISTERS_AUTARQUIAS = 'REGISTERS_AUTARQUIAS',
   REGISTERS_AREAS = 'REGISTERS_AREAS',
   REGISTERS_USERS = 'REGISTERS_USERS',
   REGISTERS_SIGNERS = 'REGISTERS_SIGNERS',
@@ -98,4 +99,40 @@ export interface LogEntry {
   action: 'EDIÇÃO' | 'INCLUSÃO' | 'EXCLUSÃO' | 'ACESSO';
   affectedDoc: string;
   description: string;
+}
+
+export interface Secretaria {
+  id: string;
+  pasta: string;
+  isFemaleSecretary: boolean;
+  responsavel: string;
+  quemSao: string;
+  oqueFazem: string;
+  enderecos: string[];
+  telefones: string[];
+  ramais: string[];
+  emails: string[];
+}
+
+export interface AreaInterna {
+  id: string;
+  nome: string;
+  sigla: string;
+}
+
+export interface Usuario {
+  id: string;
+  nomeCompleto: string;
+  cargo: string;
+  email: string;
+  whatsapp: string;
+  areaId: string;
+  isSignatario: boolean;
+}
+
+export interface Autarquia {
+  id: string;
+  nome: string;
+  sigla: string;
+  responsavel: string;
 }

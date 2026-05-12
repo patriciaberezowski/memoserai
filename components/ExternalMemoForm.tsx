@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Memo, AppView, AppViewAlias, MemoHistoryEntry } from '../types';
+import { INITIAL_SECRETARIAS } from './mockSecretarias';
+import { INITIAL_AUTARQUIAS } from './mockData';
 
 interface ExternalMemoFormProps {
     initialData?: Memo | null;
@@ -21,6 +23,7 @@ const formatDateForInput = (dateStr: string) => {
 const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit = false, setView }) => {
     const [number, setNumber] = useState('');
     const [date, setDate] = useState('');
+    const [senderType, setSenderType] = useState<'Secretaria' | 'Autarquia'>('Secretaria');
     const [sender, setSender] = useState('');
     const [recipient, setRecipient] = useState('');
     const [subject, setSubject] = useState('');
@@ -183,7 +186,18 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
                                 </label>
 
                                 <label className="block">
-                                    <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Secretaria/Autarquia Emissora *</span>
+                                    <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Tipo de Origem *</span>
+                                    <select
+                                        value={senderType}
+                                        onChange={(e) => { setSenderType(e.target.value as any); setSender(''); }}
+                                        className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3"
+                                    >
+                                        <option value="Secretaria">Secretaria</option>
+                                        <option value="Autarquia">Autarquia</option>
+                                    </select>
+                                </label>
+                                <label className="block">
+                                    <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">{senderType} Emissora *</span>
                                     <select
                                         required
                                         value={sender}
@@ -191,9 +205,10 @@ const ExternalMemoForm: React.FC<ExternalMemoFormProps> = ({ initialData, isEdit
                                         className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3"
                                     >
                                         <option value="" disabled>Selecione a origem</option>
-                                        <option value="SECOM">SECOM - Secretaria de Comunicação</option>
-                                        <option value="CODEMAR">CODEMAR - Companhia de Desenvolvimento de Maricá</option>
-                                        <option value="SEC_EDUC">Secretaria de Educação</option>
+                                        {senderType === 'Secretaria' 
+                                            ? INITIAL_SECRETARIAS.map(s => <option key={s.id} value={s.pasta}>{s.pasta}</option>)
+                                            : INITIAL_AUTARQUIAS.map(a => <option key={a.id} value={a.nome}>{a.nome}</option>)
+                                        }
                                     </select>
                                 </label>
 

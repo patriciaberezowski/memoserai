@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Memo, AppView, AppViewAlias, MemoHistoryEntry } from '../types';
+import { INITIAL_SECRETARIAS } from './mockSecretarias';
+import { INITIAL_AUTARQUIAS, INITIAL_USUARIOS } from './mockData';
 
 interface MemoFormProps {
   initialData?: Memo | null;
@@ -21,6 +23,7 @@ const formatDateForInput = (dateStr?: string) => {
 const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setView }) => {
   // Basic Details
   const [date, setDate] = useState('');
+  const [recipientType, setRecipientType] = useState<'Secretaria' | 'Autarquia'>('Secretaria');
   const [recipient, setRecipient] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientRole, setRecipientRole] = useState('');
@@ -176,20 +179,31 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
               </label>
               <label className="block">
                 <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Assinante *</span>
-                <input type="text" disabled={isLocked} required value={signer} onChange={e => setSigner(e.target.value)} placeholder="Nome de quem assina" className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 disabled:bg-slate-100 disabled:opacity-70" />
+                <select disabled={isLocked} required value={signer} onChange={e => setSigner(e.target.value)} className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 disabled:bg-slate-100 disabled:opacity-70">
+                  <option value="" disabled>Selecione o assinante</option>
+                  {INITIAL_USUARIOS.filter(u => u.isSignatario).map(u => (
+                    <option key={u.id} value={u.nomeCompleto}>{u.nomeCompleto} - {u.cargo}</option>
+                  ))}
+                </select>
               </label>
             </div>
             <div className="space-y-6">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-lg">send</span> Destinatário (Destino)</h3>
               <label className="block">
-                <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Secretaria / Autarquia *</span>
+                <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Tipo de Destino *</span>
+                <select disabled={isLocked} value={recipientType} onChange={e => { setRecipientType(e.target.value as any); setRecipient(''); }} className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 disabled:bg-slate-100 disabled:opacity-70">
+                  <option value="Secretaria">Secretaria</option>
+                  <option value="Autarquia">Autarquia</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">{recipientType} Destinatária *</span>
                 <select disabled={isLocked} required value={recipient} onChange={e => setRecipient(e.target.value)} className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 disabled:bg-slate-100 disabled:opacity-70">
-                  <option value="" disabled>Selecione a pasta</option>
-                  <option value="Secretaria de Comunicação">Secretaria de Comunicação</option>
-                  <option value="Codemar">Codemar</option>
-                  <option value="AMAR">AMAR</option>
-                  <option value="Secretaria de Turismo">Secretaria de Turismo</option>
-                  <option value="Secom">Secom</option>
+                  <option value="" disabled>Selecione a {recipientType.toLowerCase()}</option>
+                  {recipientType === 'Secretaria' 
+                    ? INITIAL_SECRETARIAS.map(s => <option key={s.id} value={s.pasta}>{s.pasta}</option>)
+                    : INITIAL_AUTARQUIAS.map(a => <option key={a.id} value={a.nome}>{a.nome}</option>)
+                  }
                 </select>
               </label>
               <div className="grid grid-cols-2 gap-4">

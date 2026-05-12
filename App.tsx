@@ -12,6 +12,11 @@ import InternalMemoView from './components/InternalMemoView';
 import MemoPrintTemplate from './components/MemoPrintTemplate';
 import LogsView from './components/LogsView';
 import SupportPage from './components/SupportPage';
+import SecretariaRegister from './components/SecretariaRegister';
+import AutarquiaRegister from './components/AutarquiaRegister';
+import UsersRegister from './components/UsersRegister';
+import AreasRegister from './components/AreasRegister';
+import SignersRegister from './components/SignersRegister';
 import Login from './components/Login';
 import { AppView, AppViewAlias, Memo } from './types';
 
@@ -68,14 +73,16 @@ const App: React.FC = () => {
         return <ExternalMemoForm initialData={selectedMemo} isEdit={true} setView={setView} />;
       case AppViewAlias.LOGS:
         return <LogsView />;
-      case AppView.REGISTERS_DEPARTMENTS:
-        return <PlaceholderView title="Secretarias e Autarquias" />;
+      case AppView.REGISTERS_SECRETARIAS:
+        return <SecretariaRegister />;
+      case AppView.REGISTERS_AUTARQUIAS:
+        return <AutarquiaRegister />;
       case AppView.REGISTERS_USERS:
-        return <PlaceholderView title="Gestão de Usuários" />;
+        return <UsersRegister />;
       case AppView.REGISTERS_AREAS:
-        return <PlaceholderView title="Áreas Internas" />;
+        return <AreasRegister />;
       case AppView.REGISTERS_SIGNERS:
-        return <PlaceholderView title="Signatários Oficiais" />;
+        return <SignersRegister />;
       case AppView.REGISTERS_FUNCTIONS:
         return <PlaceholderView title="Funções e Permissões" />;
       case AppView.SUPPORT:
@@ -111,7 +118,8 @@ const App: React.FC = () => {
       case AppViewAlias.VIEW_EXTERNAL_MEMO: return 'Detalhes do Memorando';
       case AppViewAlias.EDIT_EXTERNAL_MEMO: return 'Edição de Memorando Externo';
       case AppViewAlias.LOGS: return 'Auditoria do Sistema';
-      case AppView.REGISTERS_DEPARTMENTS: return 'Secretarias e Autarquias';
+      case AppView.REGISTERS_SECRETARIAS: return 'Secretarias';
+      case AppView.REGISTERS_AUTARQUIAS: return 'Autarquias';
       case AppView.REGISTERS_USERS: return 'Gestão de Usuários';
       case AppView.REGISTERS_AREAS: return 'Áreas Internas';
       case AppView.REGISTERS_SIGNERS: return 'Signatários Oficiais';
