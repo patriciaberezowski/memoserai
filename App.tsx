@@ -9,6 +9,7 @@ import LegacyMemoForm from './components/LegacyMemoForm';
 import ExternalMemoForm from './components/ExternalMemoForm';
 import ExternalMemoView from './components/ExternalMemoView';
 import InternalMemoView from './components/InternalMemoView';
+import ExtraMemoForm from './components/ExtraMemoForm';
 import MemoPrintTemplate from './components/MemoPrintTemplate';
 import LogsView from './components/LogsView';
 import SupportPage from './components/SupportPage';
@@ -71,6 +72,12 @@ const App: React.FC = () => {
         return <ExternalMemoView memo={selectedMemo} setView={setView} setSelectedMemo={setSelectedMemo} />;
       case AppViewAlias.EDIT_EXTERNAL_MEMO:
         return <ExternalMemoForm initialData={selectedMemo} isEdit={true} setView={setView} />;
+      case AppViewAlias.EXTRA_MEMOS:
+        return <MemoList type="EXTRA" setView={setView} setSelectedMemo={setSelectedMemo} />;
+      case AppViewAlias.NEW_EXTRA_MEMO:
+        return <ExtraMemoForm isEdit={false} setView={setView} />;
+      case AppViewAlias.EDIT_EXTRA_MEMO:
+        return <ExtraMemoForm initialData={selectedMemo} isEdit={true} setView={setView} />;
       case AppViewAlias.LOGS:
         return <LogsView />;
       case AppView.REGISTERS_SECRETARIAS:
@@ -117,6 +124,9 @@ const App: React.FC = () => {
       case AppViewAlias.NEW_EXTERNAL_MEMO: return 'Registro de Memorando Externo';
       case AppViewAlias.VIEW_EXTERNAL_MEMO: return 'Detalhes do Memorando';
       case AppViewAlias.EDIT_EXTERNAL_MEMO: return 'Edição de Memorando Externo';
+      case AppViewAlias.EXTRA_MEMOS: return 'Memorandos Extras';
+      case AppViewAlias.NEW_EXTRA_MEMO: return 'Registro de Memorando Extra';
+      case AppViewAlias.EDIT_EXTRA_MEMO: return 'Edição de Memorando Extra';
       case AppViewAlias.LOGS: return 'Auditoria do Sistema';
       case AppView.REGISTERS_SECRETARIAS: return 'Secretarias';
       case AppView.REGISTERS_AUTARQUIAS: return 'Autarquias';

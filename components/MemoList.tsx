@@ -3,7 +3,7 @@ import { Memo, AppView, AppViewAlias } from '../types';
 import html2pdf from 'html2pdf.js';
 
 interface MemoListProps {
-  type?: 'INTERNO' | 'EXTERNO';
+  type?: 'INTERNO' | 'EXTERNO' | 'EXTRA';
   kpiFilter?: 'RECEIVED' | 'SENT' | 'ANSWERED' | 'EXPIRED' | 'PENDING' | 'RESOLVED';
   setView?: (view: AppView) => void;
   setSelectedMemo?: (memo: Memo | null) => void;
@@ -44,14 +44,19 @@ const mockExternalMemos: Memo[] = [
   { id: '5', processNumber: '042/2026', year: '2026', subject: 'Levantamento de sistemas para contratação', type: 'EXTERNO', status: 'CONCLUIDO', date: '10/02/2026', deadline: '28/02/2026', sender: 'CODEMAR', recipient: 'Gabinete', institution: 'CODEMAR', content: '', hasSignedPdf: true },
 ];
 
+const mockExtraMemos: Memo[] = [
+  { id: '100', processNumber: '58A/2026/SERAI/PMM', year: '2026', subject: 'Ata de registro extra', type: 'EXTRA', status: 'PENDENTE', date: '12/05/2026', deadline: '20/05/2026', sender: 'SERAI', recipient: 'SECOM', institution: 'SERAI', content: '', responsibleArea: 'Gabinete', signer: 'Ivana Cristina de Melo Moura', category: 'Demanda', hasSignedPdf: true },
+];
+
 const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelectedMemo }) => {
   const isKpiMode = !!kpiFilter;
   const isExternal = type === 'EXTERNO';
+  const isExtra = type === 'EXTRA';
 
   // Base list depending on origin
   let baseMemos: Memo[] = [];
   if (isKpiMode) {
-    baseMemos = [...mockInternalMemos, ...mockExternalMemos];
+    baseMemos = [...mockInternalMemos, ...mockExternalMemos, ...mockExtraMemos];
     if (kpiFilter === 'RECEIVED') {
       baseMemos = baseMemos.filter(m => m.type === 'EXTERNO');
     } else if (kpiFilter === 'SENT') {
@@ -76,7 +81,7 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
       });
     }
   } else {
-    baseMemos = isExternal ? mockExternalMemos : mockInternalMemos;
+    baseMemos = isExternal ? mockExternalMemos : isExtra ? mockExtraMemos : mockInternalMemos;
   }
 
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -94,7 +99,7 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
     if (filterStatus !== 'TODOS') {
       filteredMemos = filteredMemos.filter(m => {
         const upStatus = m.status.toUpperCase();
-        if (isExternal) {
+        if (isExternal || isExtra) {
           if (filterStatus === 'PENDENTES') return upStatus === 'PENDENTE';
           if (filterStatus === 'RESPONDIDOS') return ['CONCLUIDO', 'RESPONDIDO'].includes(upStatus);
           if (filterStatus === 'RESOLVIDOS') return upStatus === 'RESOLVIDO';
@@ -135,8 +140,8 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
       filteredMemos = filteredMemos.filter(m => m.date === formattedFilterDate || m.deadline === formattedFilterDate);
     }
 
-    // Remetente ou Destinatário via campo texto (External) / Combos (Internal)
-    if (isExternal && filterSender) {
+    // Remetente ou Destinatário via campo texto (External) / Combos (Internal/Extra)
+    if ((isExternal || isExtra) && filterSender) {
       const termo = filterSender.toLowerCase();
       filteredMemos = filteredMemos.filter(m => (m.sender && m.sender.toLowerCase().includes(termo)));
     }
@@ -145,7 +150,7 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
       filteredMemos = filteredMemos.filter(m => m.recipient && m.recipient.toUpperCase().includes(filterRecipient));
     }
 
-    if (!isExternal && filterArea !== 'TODOS') {
+    if (!isExternal && !isExtra && filterArea !== 'TODOS') {
       filteredMemos = filteredMemos.filter(m => m.responsibleArea && m.responsibleArea.toUpperCase().includes(filterArea));
     }
   }
@@ -219,6 +224,8 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
     if (setView) {
       if (isExternal) {
         setView(AppViewAlias.NEW_EXTERNAL_MEMO);
+      } else if (isExtra) {
+        setView(AppViewAlias.NEW_EXTRA_MEMO);
       } else {
         setView(AppViewAlias.NEW_MEMO);
       }
@@ -230,6 +237,8 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
       setSelectedMemo(memo);
       if (memo.type === 'EXTERNO') {
         setView(AppViewAlias.VIEW_EXTERNAL_MEMO);
+      } else if (memo.type === 'EXTRA') {
+        setView(AppViewAlias.VIEW_EXTRA_MEMO);
       } else {
         setView(AppViewAlias.VIEW_INTERNAL_MEMO);
       }
@@ -241,6 +250,8 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
       setSelectedMemo(memo);
       if (memo.type === 'EXTERNO') {
         setView(AppViewAlias.EDIT_EXTERNAL_MEMO);
+      } else if (memo.type === 'EXTRA') {
+        setView(AppViewAlias.EDIT_EXTRA_MEMO);
       } else {
         setView(AppViewAlias.EDIT_INTERNAL_MEMO);
       }
@@ -259,7 +270,7 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
                     kpiFilter === 'PENDING' ? 'Memorandos Pendentes' :
                       kpiFilter === 'RESOLVED' ? 'Memorandos Resolvidos' :
                         'Memorandos Expirados'
-            ) : isExternal ? 'Memorandos Externos' : 'Memorandos Internos'}
+            ) : isExternal ? 'Memorandos Externos' : isExtra ? 'Memorandos Extras' : 'Memorandos Internos'}
           </h2>
           <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
             <span className="text-red-600 hover:underline cursor-pointer">Home</span>
@@ -269,7 +280,7 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
         </div>
         {!isKpiMode && (
           <div className="flex items-center gap-3">
-            {!isExternal && (
+            {!isExternal && !isExtra && (
               <button
                 onClick={() => {
                   if (setView) setView(AppViewAlias.NEW_LEGACY_MEMO);
@@ -405,7 +416,7 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
 
           <div className="flex-1 min-w-[150px]">
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-              Destinatário {isExternal && 'Interno'}
+              Destinatário {(isExternal || isExtra) && 'Interno'}
             </label>
             <select
               value={filterRecipient}

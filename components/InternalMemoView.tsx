@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Memo, AppView, AppViewAlias } from '../types';
 import html2pdf from 'html2pdf.js';
+import { INITIAL_AREAS } from './mockData';
 
 interface InternalMemoViewProps {
     memo: Memo | null;
@@ -31,25 +32,26 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
         let updatedMemo = { ...memo };
 
         if (!memo.processNumber) {
-            alert('Atenção: Número Oficial gerado e retido!\n\n(Isto atualizará o banco de dados marcando este Rascunho com o número final).\nIniciando Download do PDF...');
+            const area = INITIAL_AREAS.find(a => a.nome === memo.responsibleArea);
+            const sigla = area ? area.sigla : 'SERAI';
+            const randomNum = Math.floor(Math.random() * 900) + 100;
+            const processNumber = `${randomNum}/2026/SERAI/${sigla}`;
 
-            // Generate mock process number
+            alert(`Atenção: Número Oficial gerado e retido!\n\n(Isto atualizará o banco de dados marcando este Rascunho com o número final).\nIniciando Download do PDF...`);
+
             updatedMemo = {
                 ...memo,
-                processNumber: '077/2026/SERAI/PMM',
+                processNumber: processNumber,
                 status: 'DOWNLOAD'
             };
 
-            // Mutate the original reference so the list is updated
-            memo.processNumber = '077/2026/SERAI/PMM';
+            memo.processNumber = processNumber;
             memo.status = 'DOWNLOAD';
 
-            // Update the React state to force a re-render
             setSelectedMemo(updatedMemo);
             isNewOfficial = true;
         }
 
-        // Wait for React to re-render the DOM with the new processNumber before taking the snapshot
         if (isNewOfficial) {
             await new Promise(resolve => setTimeout(resolve, 300));
         }
@@ -57,24 +59,55 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
         const element = document.getElementById('memo-print-container');
         if (!element) return;
 
-        // Temporarily remove hidden class to allow html2pdf to read it
         element.classList.remove('hidden');
 
         const opt = {
-            margin: 0,
+            margin: [0, 0, 0, 0], // The margins are simulated by padding inside the HTML container
             filename: `Memorando_${memo.processNumber ? memo.processNumber.replace(/\//g, '-') : 'Rascunho'}.pdf`,
-            image: { type: 'jpeg' as const, quality: 0.98 },
+            image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const }
+            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
         };
 
         try {
-            await html2pdf().from(element).set(opt).save();
+            // Use the worker API to manipulate pages
+            const worker = html2pdf().from(element).set(opt).toPdf();
+            
+            await worker.get('pdf').then((pdf: any) => {
+                const totalPages = pdf.internal.getNumberOfPages();
+                
+                // Configuração do Rodapé (A4 in pts é aprox 595 x 842)
+                const footerText = [
+                    "Sede Brasília – DF: SCN Quadra 06, Cj A, 6º andar, Shopping ID - 70716-900 – Brasília /DF",
+                    "Sub sede Maricá/RJ: R. Álvares de Castro, 346 – Centro – 24.900-000 – Maricá/ RJ",
+                    "Telefones: (21) 99675-2831/2637-3706 - Ramal: 4399 E-mail: serai@marica.rj.gov.br e pmadm@gmail.com"
+                ];
+
+                for (let i = 1; i <= totalPages; i++) {
+                    pdf.setPage(i);
+                    // Draw a top line for the footer
+                    pdf.setDrawColor(0);
+                    pdf.setLineWidth(0.5);
+                    pdf.line(40, 800, 555, 800);
+                    
+                    pdf.setFont("helvetica", "normal");
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(0, 0, 0);
+
+                    // Add footer text lines
+                    let yPos = 810;
+                    footerText.forEach(line => {
+                        const textWidth = pdf.getStringUnitWidth(line) * 8 / pdf.internal.scaleFactor;
+                        const xPos = (595 - textWidth) / 2; // Center horizontally
+                        pdf.text(line, xPos, yPos);
+                        yPos += 10;
+                    });
+                }
+            }).save();
         } catch (error) {
             console.error("Erro ao gerar PDF:", error);
             alert("Ocorreu um erro ao gerar o PDF.");
         } finally {
-            // Restore hidden class
             element.classList.add('hidden');
         }
     };
@@ -257,8 +290,21 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
                         <div className="p-8 font-serif leading-relaxed text-slate-800 text-sm overflow-y-auto max-h-[600px]">
                             <h2 className="text-xl font-bold mb-6 font-sans">{memo.subject}</h2>
                             <div className="mb-6 pb-6 border-b border-slate-200">
-                                <p><strong className="font-sans uppercase text-xs">De:</strong> {memo.signer}{memo.signerRole ? `, ${memo.signerRole}` : ''}</p>
-                                <p><strong className="font-sans uppercase text-xs">Para:</strong> Ao Sr(a) {memo.recipientName}, {memo.recipientRole} ({memo.recipient})</p>
+                                <p><strong className="font-sans uppercase text-xs">De:</strong> {memo.signer}{memo.signerRole ? `, ${memo.signerRole}` : ''} ({memo.responsibleArea || 'N/A'})</p>
+                                <div>
+                                    <strong className="font-sans uppercase text-xs block mt-2 mb-1">Para:</strong> 
+                                    {memo.destinos && memo.destinos.length > 0 ? (
+                                        <ul className="list-none space-y-1">
+                                            {memo.destinos.map((d, idx) => (
+                                                <li key={idx} className="pl-2 border-l-2 border-slate-300">
+                                                    Ao Sr(a) {d.nome}, {d.cargo} ({d.orgao})
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p>Ao Sr(a) {memo.recipientName}, {memo.recipientRole} ({memo.recipient})</p>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="whitespace-pre-wrap">{memo.content || memo.body}</div>

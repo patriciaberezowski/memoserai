@@ -12,6 +12,23 @@ const SecretariaRegister: React.FC = () => {
         setSelectedId(id);
     };
 
+    const handleAddNova = () => {
+        const novaSecretaria: Secretaria = {
+            id: `sec-${Date.now()}`,
+            pasta: 'Nova Secretaria',
+            isFemaleSecretary: false,
+            responsavel: '',
+            quemSao: '',
+            oqueFazem: '',
+            enderecos: [],
+            telefones: [],
+            ramais: [],
+            emails: []
+        };
+        setSecretarias([novaSecretaria, ...secretarias]);
+        setSelectedId(novaSecretaria.id);
+    };
+
     const handleUpdate = (id: string, updates: Partial<Secretaria>) => {
         setSecretarias(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
     };
@@ -42,7 +59,14 @@ const SecretariaRegister: React.FC = () => {
     };
 
     const handleSave = () => {
-        alert('Dados da Secretaria atualizados com sucesso!');
+        alert('Dados da Secretaria salvos com sucesso!');
+    };
+
+    const handleDelete = (id: string) => {
+        if(confirm('Tem certeza que deseja excluir esta Secretaria?')) {
+            setSecretarias(secretarias.filter(s => s.id !== id));
+            if (selectedId === id) setSelectedId(null);
+        }
     };
 
     return (
@@ -50,7 +74,15 @@ const SecretariaRegister: React.FC = () => {
             {/* Sidebar List */}
             <div className="w-full lg:w-1/3 border-r border-slate-200 bg-white flex flex-col h-[calc(100vh-64px)] overflow-hidden">
                 <div className="p-6 border-b border-slate-100 shrink-0">
-                    <h2 className="text-xl font-bold text-slate-900 mb-2">Secretarias</h2>
+                    <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-xl font-bold text-slate-900">Secretarias</h2>
+                        <button 
+                            onClick={handleAddNova}
+                            className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg font-bold transition-colors flex items-center gap-1"
+                        >
+                            <span className="material-symbols-outlined text-[14px]">add</span> Nova
+                        </button>
+                    </div>
                     <p className="text-sm text-slate-500">Selecione uma secretaria para visualizar e editar seus detalhes de contato, funções e estrutura.</p>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -65,10 +97,10 @@ const SecretariaRegister: React.FC = () => {
                             }`}
                         >
                             <h3 className={`font-bold text-sm ${selectedId === sec.id ? 'text-red-700' : 'text-slate-800'}`}>
-                                {sec.pasta}
+                                {sec.pasta || 'Nova Secretaria'}
                             </h3>
                             <p className="text-xs text-slate-500 mt-1">
-                                <span className="font-semibold">{sec.isFemaleSecretary ? 'Secretária' : 'Secretário'}:</span> {sec.responsavel}
+                                <span className="font-semibold">{sec.isFemaleSecretary ? 'Secretária' : 'Secretário'}:</span> {sec.responsavel || 'Não definido'}
                             </p>
                         </button>
                     ))}
@@ -82,15 +114,23 @@ const SecretariaRegister: React.FC = () => {
                         
                         <div className="flex items-center justify-between">
                             <div>
-                                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{selectedSec.pasta}</h1>
+                                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{selectedSec.pasta || 'Nova Secretaria'}</h1>
                                 <p className="text-sm text-slate-500 mt-1">Edite as informações detalhadas desta secretaria abaixo.</p>
                             </div>
-                            <button
-                                onClick={handleSave}
-                                className="px-6 py-2.5 bg-slate-900 text-white font-bold text-sm rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
-                            >
-                                Salvar Alterações
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => handleDelete(selectedSec.id)}
+                                    className="px-4 py-2.5 text-slate-400 hover:bg-red-50 hover:text-red-600 font-bold text-sm rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    className="px-6 py-2.5 bg-slate-900 text-white font-bold text-sm rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
+                                >
+                                    Salvar Alterações
+                                </button>
+                            </div>
                         </div>
 
                         <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 space-y-8">
@@ -105,6 +145,7 @@ const SecretariaRegister: React.FC = () => {
                                             type="text"
                                             value={selectedSec.pasta}
                                             onChange={(e) => handleUpdate(selectedSec.id, { pasta: e.target.value })}
+                                            placeholder="Ex: Secretaria de Educação"
                                             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 transition-all outline-none bg-slate-50 focus:bg-white"
                                         />
                                     </div>
@@ -139,6 +180,7 @@ const SecretariaRegister: React.FC = () => {
                                             type="text"
                                             value={selectedSec.responsavel}
                                             onChange={(e) => handleUpdate(selectedSec.id, { responsavel: e.target.value })}
+                                            placeholder="Ex: João da Silva"
                                             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 transition-all outline-none bg-slate-50 focus:bg-white"
                                         />
                                     </div>

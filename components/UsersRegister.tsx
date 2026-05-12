@@ -6,14 +6,16 @@ const UsersRegister: React.FC = () => {
     const [usuarios, setUsuarios] = useState<Usuario[]>(INITIAL_USUARIOS);
     const [search, setSearch] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
     
     // Form state
-    const [newUser, setNewUser] = useState({
+    const [userForm, setUserForm] = useState({
         nomeCompleto: '',
         cargo: '',
         email: '',
         whatsapp: '',
-        areaId: ''
+        areaId: '',
+        senha: ''
     });
 
     const filteredUsers = useMemo(() => {
@@ -41,28 +43,62 @@ const UsersRegister: React.FC = () => {
             });
     }, [usuarios, search]);
 
-    const handleAdd = (e: React.FormEvent) => {
+    const handleOpenModal = (user?: Usuario) => {
+        if (user) {
+            setEditingId(user.id);
+            setUserForm({
+                nomeCompleto: user.nomeCompleto,
+                cargo: user.cargo,
+                email: user.email,
+                whatsapp: user.whatsapp,
+                areaId: user.areaId,
+                senha: user.senha || ''
+            });
+        } else {
+            setEditingId(null);
+            setUserForm({ nomeCompleto: '', cargo: '', email: '', whatsapp: '', areaId: '', senha: '' });
+        }
+        setIsModalOpen(true);
+    };
+
+    const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newUser.nomeCompleto || !newUser.cargo || !newUser.areaId) return;
+        if (!userForm.nomeCompleto || !userForm.cargo || !userForm.areaId) return;
         
-        const user: Usuario = {
-            id: `usr-${Date.now()}`,
-            nomeCompleto: newUser.nomeCompleto,
-            cargo: newUser.cargo,
-            email: newUser.email,
-            whatsapp: newUser.whatsapp,
-            areaId: newUser.areaId,
-            isSignatario: false
-        };
-        
-        setUsuarios([...usuarios, user]);
-        setNewUser({ nomeCompleto: '', cargo: '', email: '', whatsapp: '', areaId: '' });
+        if (editingId) {
+            setUsuarios(prev => prev.map(u => u.id === editingId ? { ...u, ...userForm } : u));
+        } else {
+            const newUser: Usuario = {
+                id: `usr-${Date.now()}`,
+                nomeCompleto: userForm.nomeCompleto,
+                cargo: userForm.cargo,
+                email: userForm.email,
+                whatsapp: userForm.whatsapp,
+                areaId: userForm.areaId,
+                senha: userForm.senha,
+                isSignatario: false,
+                status: 'Ativo'
+            };
+            setUsuarios([...usuarios, newUser]);
+        }
         setIsModalOpen(false);
     };
 
     const handleDelete = (id: string) => {
-        if(confirm('Tem certeza que deseja excluir este usuário?')) {
+        if(confirm('Tem certeza que deseja excluir este usuário definitivamente?')) {
             setUsuarios(usuarios.filter(u => u.id !== id));
+        }
+    };
+
+    const handleToggleArchive = (id: string, currentStatus?: string) => {
+        const isArchived = currentStatus === 'Arquivado';
+        const newStatus = isArchived ? 'Ativo' : 'Arquivado';
+        const msg = isArchived 
+            ? 'Deseja reativar este usuário?' 
+            : 'Deseja arquivar este usuário? Ele perderá acesso ao sistema, mas o histórico será mantido.';
+            
+        if(confirm(msg)) {
+            setUsuarios(prev => prev.map(u => u.id === id ? { ...u, status: newStatus } : u));
         }
     };
 
@@ -78,7 +114,7 @@ const UsersRegister: React.FC = () => {
                     <p className="text-slate-500 mt-1">Gerencie os acessos, cargos e lotação dos servidores no sistema.</p>
                 </div>
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => handleOpenModal()}
                     className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-bold text-sm transition-colors flex items-center gap-2 shadow-sm"
                 >
                     <span className="material-symbols-outlined text-[18px]">person_add</span>
@@ -117,81 +153,104 @@ const UsersRegister: React.FC = () => {
                                     <td colSpan={5} className="p-8 text-center text-slate-500">Nenhum usuário encontrado.</td>
                                 </tr>
                             ) : (
-                                filteredUsers.map(user => (
-                                    <tr key={user.id} className="hover:bg-slate-50/80 transition-colors">
-                                        <td className="p-4 text-sm font-semibold text-slate-700">
-                                            {getAreaName(user.areaId)}
-                                        </td>
-                                        <td className="p-4 text-sm font-bold text-slate-900">
-                                            {user.nomeCompleto}
-                                        </td>
-                                        <td className="p-4 text-sm text-slate-600">{user.cargo}</td>
-                                        <td className="p-4 text-sm text-slate-500 space-y-1">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="material-symbols-outlined text-[14px] text-slate-400">mail</span>
-                                                {user.email || '-'}
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="material-symbols-outlined text-[14px] text-slate-400">phone_iphone</span>
-                                                {user.whatsapp || '-'}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            <button 
-                                                onClick={() => handleDelete(user.id)}
-                                                className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
+                                filteredUsers.map(user => {
+                                    const isArchived = user.status === 'Arquivado';
+                                    return (
+                                        <tr key={user.id} className={`transition-colors ${isArchived ? 'bg-slate-50/50 opacity-70' : 'hover:bg-slate-50/80'}`}>
+                                            <td className="p-4 text-sm font-semibold text-slate-700">
+                                                {getAreaName(user.areaId)}
+                                            </td>
+                                            <td className="p-4 text-sm font-bold text-slate-900 flex items-center gap-2">
+                                                {user.nomeCompleto}
+                                                {isArchived && <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] uppercase font-bold tracking-wider">Arquivado</span>}
+                                            </td>
+                                            <td className="p-4 text-sm text-slate-600">{user.cargo}</td>
+                                            <td className="p-4 text-sm text-slate-500 space-y-1">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="material-symbols-outlined text-[14px] text-slate-400">mail</span>
+                                                    {user.email || '-'}
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="material-symbols-outlined text-[14px] text-slate-400">phone_iphone</span>
+                                                    {user.whatsapp || '-'}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <button 
+                                                        onClick={() => handleOpenModal(user)}
+                                                        title="Editar Usuário"
+                                                        className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleToggleArchive(user.id, user.status)}
+                                                        title={isArchived ? "Reativar Usuário" : "Arquivar Usuário"}
+                                                        className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">
+                                                            {isArchived ? 'unarchive' : 'archive'}
+                                                        </span>
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDelete(user.id)}
+                                                        title="Excluir Usuário"
+                                                        className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {/* Modal de Adicionar */}
+            {/* Modal de Adicionar / Editar */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-slate-900">Novo Usuário</h3>
+                            <h3 className="text-lg font-bold text-slate-900">{editingId ? 'Editar Usuário' : 'Novo Usuário'}</h3>
                             <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
-                        <form onSubmit={handleAdd} className="p-6 space-y-4">
+                        <form onSubmit={handleSave} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">Nome Completo</label>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Nome Completo *</label>
                                 <input
                                     type="text"
                                     required
-                                    value={newUser.nomeCompleto}
-                                    onChange={e => setNewUser({...newUser, nomeCompleto: e.target.value})}
+                                    value={userForm.nomeCompleto}
+                                    onChange={e => setUserForm({...userForm, nomeCompleto: e.target.value})}
                                     placeholder="Ex: João da Silva"
                                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none bg-slate-50 focus:bg-white"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">Cargo</label>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Cargo *</label>
                                     <input
                                         type="text"
                                         required
-                                        value={newUser.cargo}
-                                        onChange={e => setNewUser({...newUser, cargo: e.target.value})}
+                                        value={userForm.cargo}
+                                        onChange={e => setUserForm({...userForm, cargo: e.target.value})}
                                         placeholder="Ex: Analista"
                                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none bg-slate-50 focus:bg-white"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">Área Interna</label>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Área Interna *</label>
                                     <select
                                         required
-                                        value={newUser.areaId}
-                                        onChange={e => setNewUser({...newUser, areaId: e.target.value})}
+                                        value={userForm.areaId}
+                                        onChange={e => setUserForm({...userForm, areaId: e.target.value})}
                                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none bg-slate-50 focus:bg-white appearance-none"
                                     >
                                         <option value="" disabled>Selecione uma área...</option>
@@ -206,8 +265,8 @@ const UsersRegister: React.FC = () => {
                                     <label className="block text-xs font-bold text-slate-700 mb-1">E-mail</label>
                                     <input
                                         type="email"
-                                        value={newUser.email}
-                                        onChange={e => setNewUser({...newUser, email: e.target.value})}
+                                        value={userForm.email}
+                                        onChange={e => setUserForm({...userForm, email: e.target.value})}
                                         placeholder="nome@marica.rj.gov.br"
                                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none bg-slate-50 focus:bg-white"
                                     />
@@ -216,13 +275,27 @@ const UsersRegister: React.FC = () => {
                                     <label className="block text-xs font-bold text-slate-700 mb-1">WhatsApp</label>
                                     <input
                                         type="text"
-                                        value={newUser.whatsapp}
-                                        onChange={e => setNewUser({...newUser, whatsapp: e.target.value})}
+                                        value={userForm.whatsapp}
+                                        onChange={e => setUserForm({...userForm, whatsapp: e.target.value})}
                                         placeholder="(21) 90000-0000"
                                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none bg-slate-50 focus:bg-white"
                                     />
                                 </div>
                             </div>
+                            
+                            {!editingId && (
+                                <div className="pt-2 border-t border-slate-100 mt-2">
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Senha de Acesso Inicial *</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={userForm.senha}
+                                        onChange={e => setUserForm({...userForm, senha: e.target.value})}
+                                        placeholder="Defina uma senha provisória"
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none bg-slate-50 focus:bg-white"
+                                    />
+                                </div>
+                            )}
                             
                             <div className="pt-4 flex justify-end gap-3">
                                 <button
@@ -236,7 +309,7 @@ const UsersRegister: React.FC = () => {
                                     type="submit"
                                     className="px-5 py-2.5 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
                                 >
-                                    Salvar Usuário
+                                    {editingId ? 'Salvar Alterações' : 'Salvar Usuário'}
                                 </button>
                             </div>
                         </form>

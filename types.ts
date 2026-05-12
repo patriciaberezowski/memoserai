@@ -16,6 +16,10 @@ export enum AppView {
   MEMOS_EXPIRED = 'MEMOS_EXPIRED',
   MEMOS_PENDING = 'MEMOS_PENDING',
   MEMOS_RESOLVED = 'MEMOS_RESOLVED',
+  MEMOS_EXTRA = 'MEMOS_EXTRA',
+  MEMOS_EXTRA_NEW = 'MEMOS_EXTRA_NEW',
+  MEMOS_EXTRA_VIEW = 'MEMOS_EXTRA_VIEW',
+  MEMOS_EXTRA_EDIT = 'MEMOS_EXTRA_EDIT',
   REPORTS = 'REPORTS',
   REGISTERS_SECRETARIAS = 'REGISTERS_SECRETARIAS',
   REGISTERS_AUTARQUIAS = 'REGISTERS_AUTARQUIAS',
@@ -41,6 +45,10 @@ export const AppViewAlias = {
   NEW_EXTERNAL_MEMO: AppView.MEMOS_EXTERNAL_NEW,
   VIEW_EXTERNAL_MEMO: AppView.MEMOS_EXTERNAL_VIEW,
   EDIT_EXTERNAL_MEMO: AppView.MEMOS_EXTERNAL_EDIT,
+  EXTRA_MEMOS: AppView.MEMOS_EXTRA,
+  NEW_EXTRA_MEMO: AppView.MEMOS_EXTRA_NEW,
+  VIEW_EXTRA_MEMO: AppView.MEMOS_EXTRA_VIEW,
+  EDIT_EXTRA_MEMO: AppView.MEMOS_EXTRA_EDIT,
   LOGS: AppView.AUDIT_LOGS
 };
 
@@ -48,8 +56,8 @@ export interface Memo {
   id: string;
   processNumber: string;
   subject: string;
-  type: 'INTERNO' | 'EXTERNO';
-  status: 'PENDENTE' | 'CONCLUIDO' | 'EXPIRADO' | 'ENCAMINHADO' | 'ARQUIVADO' | 'RASCUNHO' | 'DOWNLOAD' | 'ASSINADO' | 'VENCIDO' | 'RESOLVIDO' | string;
+  type: 'INTERNO' | 'EXTERNO' | 'EXTRA';
+  status: 'PENDENTE' | 'CONCLUIDO' | 'RESPONDIDO' | 'EXPIRADO' | 'ENCAMINHADO' | 'ARQUIVADO' | 'RASCUNHO' | 'DOWNLOAD' | 'ASSINADO' | 'VENCIDO' | 'RESOLVIDO' | string;
   date: string;
   deadline: string;
   sender: string;
@@ -60,6 +68,12 @@ export interface Memo {
   linkedMemo?: string;
   fileName?: string;
   fileUrl?: string;
+  destinos?: {
+      tipo: 'Secretaria' | 'Autarquia';
+      orgao: string;
+      nome: string;
+      cargo: string;
+  }[];
 
   // Novos campos Internos e Externos Adicionais
   receiptDate?: string;
@@ -128,6 +142,8 @@ export interface Usuario {
   whatsapp: string;
   areaId: string;
   isSignatario: boolean;
+  senha?: string;
+  status?: 'Ativo' | 'Arquivado';
 }
 
 export interface Autarquia {

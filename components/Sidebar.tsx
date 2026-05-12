@@ -29,6 +29,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
       items: [
         { view: AppViewAlias.INTERNAL_MEMOS, icon: 'inbox', label: 'Internos', badge: '12' },
         { view: AppViewAlias.EXTERNAL_MEMOS, icon: 'send', label: 'Externos' },
+        { view: AppViewAlias.EXTRA_MEMOS, icon: 'note_add', label: 'Extras' },
       ]
     },
     {

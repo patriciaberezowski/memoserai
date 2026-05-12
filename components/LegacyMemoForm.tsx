@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { AppView, AppViewAlias } from '../types';
+import { INITIAL_AREAS, INITIAL_AUTARQUIAS } from './mockData';
+import { INITIAL_SECRETARIAS } from './mockSecretarias';
 
 interface LegacyMemoFormProps {
     setView: (view: AppView) => void;
@@ -10,6 +12,8 @@ const LegacyMemoForm: React.FC<LegacyMemoFormProps> = ({ setView }) => {
     const [date, setDate] = useState('');
     const [subject, setSubject] = useState('');
     const [responsibleArea, setResponsibleArea] = useState('');
+    
+    const [recipientType, setRecipientType] = useState<'secretaria' | 'autarquia'>('secretaria');
     const [recipient, setRecipient] = useState('');
     const [recipientName, setRecipientName] = useState('');
 
@@ -86,15 +90,76 @@ const LegacyMemoForm: React.FC<LegacyMemoFormProps> = ({ setView }) => {
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-lg">person</span> Remetente (Origem)</h3>
                             <label className="block">
                                 <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Área Emissora *</span>
-                                <input type="text" required value={responsibleArea} onChange={e => setResponsibleArea(e.target.value)} placeholder="Quem emitiu?" className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3" />
+                                <select 
+                                    required 
+                                    value={responsibleArea} 
+                                    onChange={e => setResponsibleArea(e.target.value)} 
+                                    className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 appearance-none bg-slate-50"
+                                >
+                                    <option value="" disabled>Selecione a área...</option>
+                                    {INITIAL_AREAS.map(area => (
+                                        <option key={area.id} value={area.id}>{area.nome}</option>
+                                    ))}
+                                </select>
                             </label>
                         </div>
 
                         <div className="space-y-6">
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-lg">send</span> Destinatário (Destino)</h3>
+                            
+                            <div>
+                                <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Tipo de Destino *</span>
+                                <div className="mt-3 flex items-center gap-6">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="recipientType"
+                                            value="secretaria"
+                                            checked={recipientType === 'secretaria'}
+                                            onChange={() => {
+                                                setRecipientType('secretaria');
+                                                setRecipient('');
+                                            }}
+                                            className="w-4 h-4 text-primary focus:ring-primary/20 border-slate-300"
+                                        />
+                                        <span className="text-sm font-medium text-slate-700">Secretaria</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="recipientType"
+                                            value="autarquia"
+                                            checked={recipientType === 'autarquia'}
+                                            onChange={() => {
+                                                setRecipientType('autarquia');
+                                                setRecipient('');
+                                            }}
+                                            className="w-4 h-4 text-primary focus:ring-primary/20 border-slate-300"
+                                        />
+                                        <span className="text-sm font-medium text-slate-700">Autarquia / Empresa</span>
+                                    </label>
+                                </div>
+                            </div>
+
                             <label className="block">
                                 <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Secretaria / Autarquia Recebedora *</span>
-                                <input type="text" required value={recipient} onChange={e => setRecipient(e.target.value)} placeholder="Para qual órgão foi?" className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3" />
+                                <select 
+                                    required 
+                                    value={recipient} 
+                                    onChange={e => setRecipient(e.target.value)} 
+                                    className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 appearance-none bg-slate-50"
+                                >
+                                    <option value="" disabled>Selecione...</option>
+                                    {recipientType === 'secretaria' ? (
+                                        INITIAL_SECRETARIAS.map(sec => (
+                                            <option key={sec.id} value={sec.id}>{sec.pasta}</option>
+                                        ))
+                                    ) : (
+                                        INITIAL_AUTARQUIAS.map(aut => (
+                                            <option key={aut.id} value={aut.id}>{aut.nome}</option>
+                                        ))
+                                    )}
+                                </select>
                             </label>
 
                             <label className="block">
@@ -106,16 +171,37 @@ const LegacyMemoForm: React.FC<LegacyMemoFormProps> = ({ setView }) => {
 
                     {/* Upload Section */}
                     <div className="pt-8">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><span className="material-symbols-outlined text-lg">upload_file</span> Anexo Obrigatório</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">upload_file</span> PDF do Memorando (Obrigatório)
+                                </h3>
 
-                        <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
-                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                <span className="material-symbols-outlined text-4xl text-slate-400 mb-2">picture_as_pdf</span>
-                                <p className="text-sm font-semibold text-primary mb-1">Clique para selecionar ou arraste o PDF Original</p>
-                                <p className="text-xs text-slate-500">Documento finalizado/assinado (Tamanho máx. 5MB)</p>
+                                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <span className="material-symbols-outlined text-4xl text-slate-400 mb-2">picture_as_pdf</span>
+                                        <p className="text-sm font-semibold text-primary mb-1">Upload do PDF Original</p>
+                                        <p className="text-xs text-slate-500">Apenas documento principal</p>
+                                    </div>
+                                    <input type="file" className="hidden" accept="application/pdf" required />
+                                </label>
                             </div>
-                            <input type="file" className="hidden" accept="application/pdf" required />
-                        </label>
+                            
+                            <div>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">attachment</span> Anexos Adicionais (Opcional)
+                                </h3>
+
+                                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors relative overflow-hidden">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6 z-10 relative pointer-events-none">
+                                        <span className="material-symbols-outlined text-4xl text-slate-400 mb-2">library_add</span>
+                                        <p className="text-sm font-semibold text-slate-700 mb-1">Adicionar outros arquivos</p>
+                                        <p className="text-xs text-slate-500">Planilhas, Imagens, Documentos</p>
+                                    </div>
+                                    <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" multiple />
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                 </div>

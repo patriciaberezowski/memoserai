@@ -13,12 +13,30 @@ const AutarquiaRegister: React.FC = () => {
         setSelectedId(id);
     };
 
+    const handleAddNova = () => {
+        const novaAutarquia: Autarquia = {
+            id: `aut-${Date.now()}`,
+            nome: 'Nova Autarquia',
+            sigla: 'NA',
+            responsavel: ''
+        };
+        setAutarquias([novaAutarquia, ...autarquias]);
+        setSelectedId(novaAutarquia.id);
+    };
+
     const handleUpdate = (id: string, updates: Partial<Autarquia>) => {
         setAutarquias(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
     };
 
     const handleSave = () => {
-        alert('Dados da Autarquia atualizados com sucesso!');
+        alert('Dados da Autarquia salvos com sucesso!');
+    };
+
+    const handleDelete = (id: string) => {
+        if(confirm('Tem certeza que deseja excluir esta Autarquia?')) {
+            setAutarquias(autarquias.filter(a => a.id !== id));
+            if (selectedId === id) setSelectedId(null);
+        }
     };
 
     return (
@@ -26,7 +44,15 @@ const AutarquiaRegister: React.FC = () => {
             {/* Sidebar List */}
             <div className="w-full lg:w-1/3 border-r border-slate-200 bg-white flex flex-col h-[calc(100vh-64px)] overflow-hidden">
                 <div className="p-6 border-b border-slate-100 shrink-0">
-                    <h2 className="text-xl font-bold text-slate-900 mb-2">Autarquias e Estatais</h2>
+                    <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-xl font-bold text-slate-900">Autarquias e Estatais</h2>
+                        <button 
+                            onClick={handleAddNova}
+                            className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg font-bold transition-colors flex items-center gap-1"
+                        >
+                            <span className="material-symbols-outlined text-[14px]">add</span> Nova
+                        </button>
+                    </div>
                     <p className="text-sm text-slate-500">Selecione uma autarquia para visualizar e editar informações básicas.</p>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -41,10 +67,10 @@ const AutarquiaRegister: React.FC = () => {
                             }`}
                         >
                             <h3 className={`font-bold text-sm ${selectedId === aut.id ? 'text-red-700' : 'text-slate-800'}`}>
-                                {aut.sigla} - {aut.nome}
+                                {aut.sigla} - {aut.nome || 'Nova Autarquia'}
                             </h3>
                             <p className="text-xs text-slate-500 mt-1">
-                                <span className="font-semibold">Responsável:</span> {aut.responsavel}
+                                <span className="font-semibold">Responsável:</span> {aut.responsavel || 'Não definido'}
                             </p>
                         </button>
                     ))}
@@ -58,15 +84,23 @@ const AutarquiaRegister: React.FC = () => {
                         
                         <div className="flex items-center justify-between">
                             <div>
-                                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{selectedAut.sigla}</h1>
+                                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{selectedAut.sigla || 'NA'}</h1>
                                 <p className="text-sm text-slate-500 mt-1">Cadastro Simplificado</p>
                             </div>
-                            <button
-                                onClick={handleSave}
-                                className="px-6 py-2.5 bg-slate-900 text-white font-bold text-sm rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
-                            >
-                                Salvar Alterações
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => handleDelete(selectedAut.id)}
+                                    className="px-4 py-2.5 text-slate-400 hover:bg-red-50 hover:text-red-600 font-bold text-sm rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    className="px-6 py-2.5 bg-slate-900 text-white font-bold text-sm rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
+                                >
+                                    Salvar Alterações
+                                </button>
+                            </div>
                         </div>
 
                         <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 space-y-8">
@@ -79,6 +113,7 @@ const AutarquiaRegister: React.FC = () => {
                                             type="text"
                                             value={selectedAut.nome}
                                             onChange={(e) => handleUpdate(selectedAut.id, { nome: e.target.value })}
+                                            placeholder="Ex: Serviço de Obras"
                                             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 transition-all outline-none bg-slate-50 focus:bg-white"
                                         />
                                     </div>
@@ -88,6 +123,7 @@ const AutarquiaRegister: React.FC = () => {
                                             type="text"
                                             value={selectedAut.sigla}
                                             onChange={(e) => handleUpdate(selectedAut.id, { sigla: e.target.value })}
+                                            placeholder="Ex: SOMAR"
                                             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 transition-all outline-none bg-slate-50 focus:bg-white"
                                         />
                                     </div>
@@ -97,6 +133,7 @@ const AutarquiaRegister: React.FC = () => {
                                             type="text"
                                             value={selectedAut.responsavel}
                                             onChange={(e) => handleUpdate(selectedAut.id, { responsavel: e.target.value })}
+                                            placeholder="Ex: João da Silva"
                                             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:border-red-500 focus:ring-4 focus:ring-red-500/10 transition-all outline-none bg-slate-50 focus:bg-white"
                                         />
                                     </div>

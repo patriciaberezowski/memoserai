@@ -16,7 +16,7 @@ export const INITIAL_AUTARQUIAS: Autarquia[] = [
 ];
 
 export const INITIAL_AREAS: AreaInterna[] = [
-    { id: 'area-1', nome: 'Gabinete da Secretária', sigla: 'GAB' },
+    { id: 'area-1', nome: 'Gabinete', sigla: 'GAB' },
     { id: 'area-2', nome: 'Subsecretaria Executiva', sigla: 'SUBEX' },
     { id: 'area-3', nome: 'Coordenadoria de Tecnologia', sigla: 'COTEC' },
     { id: 'area-4', nome: 'Departamento de Recursos Humanos', sigla: 'DRH' },
@@ -40,7 +40,7 @@ export const INITIAL_USUARIOS: Usuario[] = [
         email: 'joao.silva@marica.rj.gov.br',
         whatsapp: '(21) 99999-0002',
         areaId: 'area-2',
-        isSignatario: true
+        isSignatario: false
     },
     {
         id: 'usr-3',

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Memo, AppView, AppViewAlias, MemoHistoryEntry } from '../types';
 import { INITIAL_SECRETARIAS } from './mockSecretarias';
-import { INITIAL_AUTARQUIAS, INITIAL_USUARIOS } from './mockData';
+import { INITIAL_AUTARQUIAS, INITIAL_USUARIOS, INITIAL_AREAS } from './mockData';
 
 interface MemoFormProps {
   initialData?: Memo | null;
@@ -23,10 +23,8 @@ const formatDateForInput = (dateStr?: string) => {
 const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setView }) => {
   // Basic Details
   const [date, setDate] = useState('');
-  const [recipientType, setRecipientType] = useState<'Secretaria' | 'Autarquia'>('Secretaria');
-  const [recipient, setRecipient] = useState('');
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientRole, setRecipientRole] = useState('');
+  const [destinos, setDestinos] = useState<{tipo: 'Secretaria' | 'Autarquia', orgao: string, nome: string, cargo: string}[]>([{ tipo: 'Secretaria', orgao: '', nome: '', cargo: '' }]);
+  
   const [subject, setSubject] = useState('');
   const [deadline, setDeadline] = useState('');
 
@@ -67,9 +65,18 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
   useEffect(() => {
     if (isEdit && initialData) {
       setDate(formatDateForInput(initialData.date) || '');
-      setRecipient(initialData.recipient || '');
-      setRecipientName(initialData.recipientName || '');
-      setRecipientRole(initialData.recipientRole || '');
+      
+      if (initialData.destinos && initialData.destinos.length > 0) {
+        setDestinos(initialData.destinos);
+      } else if (initialData.recipient) {
+        setDestinos([{
+          tipo: 'Secretaria', // fallback
+          orgao: initialData.recipient,
+          nome: initialData.recipientName || '',
+          cargo: initialData.recipientRole || ''
+        }]);
+      }
+      
       setSubject(initialData.subject || '');
       setDeadline(formatDateForInput(initialData.deadline) || '');
       setResponsibleArea(initialData.responsibleArea || '');
@@ -86,14 +93,53 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
     if (!content) {
       return alert('O texto do memorando não pode estar vazio.');
     }
-    // Update mock history immediately before saving
+    
+    // Validar se há ao menos um destino preenchido
+    const invalidDestino = destinos.some(d => !d.orgao || !d.nome || !d.cargo);
+    if (invalidDestino) {
+      return alert('Por favor, preencha todos os campos obrigatórios dos destinatários.');
+    }
+
     logAction('Alterações manuais salvas no sistema');
 
+    // Create legacy fields for backward compatibility
+    const legacyRecipient = destinos.map(d => d.orgao).join(', ');
+    const legacyRecipientName = destinos.map(d => d.nome).join(', ');
+    const legacyRecipientRole = destinos.map(d => d.cargo).join(', ');
+
     console.log('Memorando Interno Salvo:', {
-      date, recipient, recipientName, recipientRole, subject, deadline, responsibleArea, signer, category, content, attachments, history: localHistory
+      date, 
+      destinos,
+      recipient: legacyRecipient, 
+      recipientName: legacyRecipientName, 
+      recipientRole: legacyRecipientRole, 
+      subject, deadline, responsibleArea, signer, category, content, attachments, history: localHistory
     });
+    
     alert(isEdit ? 'Rascunho atualizado!' : 'Memorando Interno Criado com Sucesso!');
     if (setView) setView(AppViewAlias.INTERNAL_MEMOS);
+  };
+
+  const handleAddDestino = () => {
+    setDestinos([...destinos, { tipo: 'Secretaria', orgao: '', nome: '', cargo: '' }]);
+  };
+
+  const handleRemoveDestino = (index: number) => {
+    if (destinos.length > 1) {
+      const newDestinos = [...destinos];
+      newDestinos.splice(index, 1);
+      setDestinos(newDestinos);
+    }
+  };
+
+  const updateDestino = (index: number, field: keyof typeof destinos[0], value: string) => {
+    const newDestinos = [...destinos];
+    newDestinos[index] = { ...newDestinos[index], [field]: value };
+    // Se mudou o tipo, limpa o orgão
+    if (field === 'tipo') {
+      newDestinos[index].orgao = '';
+    }
+    setDestinos(newDestinos);
   };
 
   return (
@@ -170,11 +216,9 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
                 <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Área Responsável (SERAI) *</span>
                 <select disabled={isLocked} required value={responsibleArea} onChange={e => setResponsibleArea(e.target.value)} className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 disabled:bg-slate-100 disabled:opacity-70">
                   <option value="" disabled>Selecione a área</option>
-                  <option value="ASCOM">ASCOM</option>
-                  <option value="Gabinete">Gabinete</option>
-                  <option value="Administrativo">Administrativo</option>
-                  <option value="Formalização">Formalização</option>
-                  <option value="Captação">Captação</option>
+                  {INITIAL_AREAS.map(area => (
+                      <option key={area.id} value={area.nome}>{area.nome}</option>
+                  ))}
                 </select>
               </label>
               <label className="block">
@@ -187,35 +231,94 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
                 </select>
               </label>
             </div>
+            
             <div className="space-y-6">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-lg">send</span> Destinatário (Destino)</h3>
-              <label className="block">
-                <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Tipo de Destino *</span>
-                <select disabled={isLocked} value={recipientType} onChange={e => { setRecipientType(e.target.value as any); setRecipient(''); }} className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 disabled:bg-slate-100 disabled:opacity-70">
-                  <option value="Secretaria">Secretaria</option>
-                  <option value="Autarquia">Autarquia</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">{recipientType} Destinatária *</span>
-                <select disabled={isLocked} required value={recipient} onChange={e => setRecipient(e.target.value)} className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 disabled:bg-slate-100 disabled:opacity-70">
-                  <option value="" disabled>Selecione a {recipientType.toLowerCase()}</option>
-                  {recipientType === 'Secretaria' 
-                    ? INITIAL_SECRETARIAS.map(s => <option key={s.id} value={s.pasta}>{s.pasta}</option>)
-                    : INITIAL_AUTARQUIAS.map(a => <option key={a.id} value={a.nome}>{a.nome}</option>)
-                  }
-                </select>
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">A/C (Nome) *</span>
-                  <input type="text" disabled={isLocked} required value={recipientName} onChange={e => setRecipientName(e.target.value)} className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 disabled:bg-slate-100 disabled:opacity-70" placeholder="Ex: João Silva" />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Cargo *</span>
-                  <input type="text" disabled={isLocked} required value={recipientRole} onChange={e => setRecipientRole(e.target.value)} className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-3 disabled:bg-slate-100 disabled:opacity-70" placeholder="Ex: Secretário" />
-                </label>
+              <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <span className="material-symbols-outlined text-lg">send</span> Destinatários
+                  </h3>
+                  {!isLocked && (
+                      <button 
+                          type="button" 
+                          onClick={handleAddDestino}
+                          className="text-xs font-bold text-primary flex items-center gap-1 hover:text-red-800 transition-colors bg-red-50 px-3 py-1.5 rounded-lg"
+                      >
+                          <span className="material-symbols-outlined text-[14px]">add</span> Adicionar Destinatário
+                      </button>
+                  )}
               </div>
+
+              {destinos.map((destino, index) => (
+                  <div key={index} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4 relative">
+                      {destinos.length > 1 && !isLocked && (
+                          <button 
+                              type="button" 
+                              onClick={() => handleRemoveDestino(index)}
+                              className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                              <span className="material-symbols-outlined text-[18px]">close</span>
+                          </button>
+                      )}
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <label className="block md:col-span-2">
+                              <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Tipo de Destino *</span>
+                              <select 
+                                  disabled={isLocked} 
+                                  value={destino.tipo} 
+                                  onChange={e => updateDestino(index, 'tipo', e.target.value as 'Secretaria' | 'Autarquia')} 
+                                  className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-2.5 disabled:bg-slate-100 disabled:opacity-70 bg-white"
+                              >
+                                  <option value="Secretaria">Secretaria</option>
+                                  <option value="Autarquia">Autarquia</option>
+                              </select>
+                          </label>
+
+                          <label className="block md:col-span-2">
+                              <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">{destino.tipo} Destinatária *</span>
+                              <select 
+                                  disabled={isLocked} 
+                                  required 
+                                  value={destino.orgao} 
+                                  onChange={e => updateDestino(index, 'orgao', e.target.value)} 
+                                  className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-2.5 disabled:bg-slate-100 disabled:opacity-70 bg-white"
+                              >
+                                  <option value="" disabled>Selecione a {destino.tipo.toLowerCase()}</option>
+                                  {destino.tipo === 'Secretaria' 
+                                      ? INITIAL_SECRETARIAS.map(s => <option key={s.id} value={s.pasta}>{s.pasta}</option>)
+                                      : INITIAL_AUTARQUIAS.map(a => <option key={a.id} value={a.nome}>{a.nome}</option>)
+                                  }
+                              </select>
+                          </label>
+
+                          <label className="block">
+                              <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">A/C (Nome) *</span>
+                              <input 
+                                  type="text" 
+                                  disabled={isLocked} 
+                                  required 
+                                  value={destino.nome} 
+                                  onChange={e => updateDestino(index, 'nome', e.target.value)} 
+                                  className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-2.5 disabled:bg-slate-100 disabled:opacity-70 bg-white" 
+                                  placeholder="Ex: João Silva" 
+                              />
+                          </label>
+
+                          <label className="block">
+                              <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Cargo *</span>
+                              <input 
+                                  type="text" 
+                                  disabled={isLocked} 
+                                  required 
+                                  value={destino.cargo} 
+                                  onChange={e => updateDestino(index, 'cargo', e.target.value)} 
+                                  className="mt-2 block w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-sm py-2.5 disabled:bg-slate-100 disabled:opacity-70 bg-white" 
+                                  placeholder="Ex: Secretário" 
+                              />
+                          </label>
+                      </div>
+                  </div>
+              ))}
             </div>
           </div>
 

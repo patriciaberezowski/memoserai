@@ -6,9 +6,10 @@ const AreasRegister: React.FC = () => {
     const [areas, setAreas] = useState<AreaInterna[]>(INITIAL_AREAS);
     const [search, setSearch] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
     
     // Form state
-    const [newArea, setNewArea] = useState({ nome: '', sigla: '' });
+    const [areaForm, setAreaForm] = useState({ nome: '', sigla: '' });
 
     const filteredAreas = useMemo(() => {
         return areas
@@ -19,18 +20,32 @@ const AreasRegister: React.FC = () => {
             .sort((a, b) => a.nome.localeCompare(b.nome));
     }, [areas, search]);
 
-    const handleAdd = (e: React.FormEvent) => {
+    const handleOpenModal = (area?: AreaInterna) => {
+        if (area) {
+            setEditingId(area.id);
+            setAreaForm({ nome: area.nome, sigla: area.sigla });
+        } else {
+            setEditingId(null);
+            setAreaForm({ nome: '', sigla: '' });
+        }
+        setIsModalOpen(true);
+    };
+
+    const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newArea.nome || !newArea.sigla) return;
+        if (!areaForm.nome || !areaForm.sigla) return;
         
-        const area: AreaInterna = {
-            id: `area-${Date.now()}`,
-            nome: newArea.nome,
-            sigla: newArea.sigla.toUpperCase()
-        };
+        if (editingId) {
+            setAreas(prev => prev.map(a => a.id === editingId ? { ...a, nome: areaForm.nome, sigla: areaForm.sigla.toUpperCase() } : a));
+        } else {
+            const newArea: AreaInterna = {
+                id: `area-${Date.now()}`,
+                nome: areaForm.nome,
+                sigla: areaForm.sigla.toUpperCase()
+            };
+            setAreas([...areas, newArea]);
+        }
         
-        setAreas([...areas, area]);
-        setNewArea({ nome: '', sigla: '' });
         setIsModalOpen(false);
     };
 
@@ -48,7 +63,7 @@ const AreasRegister: React.FC = () => {
                     <p className="text-slate-500 mt-1">Gerencie os departamentos e setores internos do sistema.</p>
                 </div>
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => handleOpenModal()}
                     className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-bold text-sm transition-colors flex items-center gap-2 shadow-sm"
                 >
                     <span className="material-symbols-outlined text-[18px]">add</span>
@@ -94,12 +109,22 @@ const AreasRegister: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="p-4 text-right">
-                                            <button 
-                                                onClick={() => handleDelete(area.id)}
-                                                className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                            </button>
+                                            <div className="flex items-center justify-end gap-1">
+                                                <button 
+                                                    onClick={() => handleOpenModal(area)}
+                                                    title="Editar Área"
+                                                    className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDelete(area.id)}
+                                                    title="Excluir Área"
+                                                    className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -109,24 +134,24 @@ const AreasRegister: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modal de Adicionar */}
+            {/* Modal de Adicionar / Editar */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-slate-900">Nova Área Interna</h3>
+                            <h3 className="text-lg font-bold text-slate-900">{editingId ? 'Editar Área Interna' : 'Nova Área Interna'}</h3>
                             <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
-                        <form onSubmit={handleAdd} className="p-6 space-y-4">
+                        <form onSubmit={handleSave} className="p-6 space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">Nome da Área</label>
                                 <input
                                     type="text"
                                     required
-                                    value={newArea.nome}
-                                    onChange={e => setNewArea({...newArea, nome: e.target.value})}
+                                    value={areaForm.nome}
+                                    onChange={e => setAreaForm({...areaForm, nome: e.target.value})}
                                     placeholder="Ex: Departamento de Recursos Humanos"
                                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none"
                                 />
@@ -136,8 +161,8 @@ const AreasRegister: React.FC = () => {
                                 <input
                                     type="text"
                                     required
-                                    value={newArea.sigla}
-                                    onChange={e => setNewArea({...newArea, sigla: e.target.value})}
+                                    value={areaForm.sigla}
+                                    onChange={e => setAreaForm({...areaForm, sigla: e.target.value})}
                                     placeholder="Ex: DRH"
                                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none"
                                 />
@@ -154,7 +179,7 @@ const AreasRegister: React.FC = () => {
                                     type="submit"
                                     className="px-5 py-2.5 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
                                 >
-                                    Adicionar
+                                    {editingId ? 'Salvar Alterações' : 'Adicionar'}
                                 </button>
                             </div>
                         </form>
