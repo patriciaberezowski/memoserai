@@ -1,12 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Usuario } from '../types';
 import { INITIAL_USUARIOS, INITIAL_AREAS } from './mockData';
+import { archiveUser, deleteUser, listUsers, saveUser } from '../services/userRepository';
 
 const UsersRegister: React.FC = () => {
     const [usuarios, setUsuarios] = useState<Usuario[]>(INITIAL_USUARIOS);
     const [search, setSearch] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [loadError, setLoadError] = useState('');
     
     // Form state
     const [userForm, setUserForm] = useState({
@@ -17,6 +21,31 @@ const UsersRegister: React.FC = () => {
         areaId: '',
         senha: ''
     });
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadUsers = async () => {
+            setIsLoading(true);
+            setLoadError('');
+
+            try {
+                const savedUsers = await listUsers();
+                if (isMounted) setUsuarios(savedUsers);
+            } catch (error) {
+                console.error('Erro ao carregar usuários:', error);
+                if (isMounted) setLoadError('Não foi possível carregar os usuários do Supabase.');
+            } finally {
+                if (isMounted) setIsLoading(false);
+            }
+        };
+
+        loadUsers();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const filteredUsers = useMemo(() => {
         return usuarios
@@ -61,36 +90,52 @@ const UsersRegister: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleSave = (e: React.FormEvent) => {
+    const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!userForm.nomeCompleto || !userForm.cargo || !userForm.areaId) return;
+        if (!userForm.nomeCompleto || !userForm.cargo || !userForm.areaId || !userForm.email) return;
         
-        if (editingId) {
-            setUsuarios(prev => prev.map(u => u.id === editingId ? { ...u, ...userForm } : u));
-        } else {
-            const newUser: Usuario = {
-                id: `usr-${Date.now()}`,
-                nomeCompleto: userForm.nomeCompleto,
-                cargo: userForm.cargo,
-                email: userForm.email,
-                whatsapp: userForm.whatsapp,
-                areaId: userForm.areaId,
-                senha: userForm.senha,
-                isSignatario: false,
-                status: 'Ativo'
-            };
-            setUsuarios([...usuarios, newUser]);
+        const userToSave: Usuario = {
+            id: editingId || `usr-${Date.now()}`,
+            nomeCompleto: userForm.nomeCompleto,
+            cargo: userForm.cargo,
+            email: userForm.email,
+            whatsapp: userForm.whatsapp,
+            areaId: userForm.areaId,
+            senha: userForm.senha,
+            isSignatario: usuarios.find(u => u.id === editingId)?.isSignatario || false,
+            status: usuarios.find(u => u.id === editingId)?.status || 'Ativo'
+        };
+
+        try {
+            setIsSaving(true);
+            const savedUser = await saveUser(userToSave);
+            if (editingId) {
+                setUsuarios(prev => prev.map(u => u.id === editingId ? savedUser : u));
+            } else {
+                setUsuarios(prev => [...prev, savedUser]);
+            }
+            setIsModalOpen(false);
+        } catch (error) {
+            console.error('Erro ao salvar usuário:', error);
+            alert('Não foi possível salvar o usuário no Supabase.');
+        } finally {
+            setIsSaving(false);
         }
-        setIsModalOpen(false);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if(confirm('Tem certeza que deseja excluir este usuário definitivamente?')) {
-            setUsuarios(usuarios.filter(u => u.id !== id));
+            try {
+                await deleteUser(id);
+                setUsuarios(usuarios.filter(u => u.id !== id));
+            } catch (error) {
+                console.error('Erro ao excluir usuário:', error);
+                alert('Não foi possível excluir o usuário no Supabase.');
+            }
         }
     };
 
-    const handleToggleArchive = (id: string, currentStatus?: string) => {
+    const handleToggleArchive = async (id: string, currentStatus?: string) => {
         const isArchived = currentStatus === 'Arquivado';
         const newStatus = isArchived ? 'Ativo' : 'Arquivado';
         const msg = isArchived 
@@ -98,7 +143,16 @@ const UsersRegister: React.FC = () => {
             : 'Deseja arquivar este usuário? Ele perderá acesso ao sistema, mas o histórico será mantido.';
             
         if(confirm(msg)) {
-            setUsuarios(prev => prev.map(u => u.id === id ? { ...u, status: newStatus } : u));
+            const currentUser = usuarios.find(u => u.id === id);
+            if (!currentUser) return;
+
+            try {
+                const savedUser = await archiveUser(currentUser, !isArchived);
+                setUsuarios(prev => prev.map(u => u.id === id ? { ...savedUser, status: newStatus } : u));
+            } catch (error) {
+                console.error('Erro ao atualizar usuário:', error);
+                alert('Não foi possível atualizar o usuário no Supabase.');
+            }
         }
     };
 
@@ -123,6 +177,11 @@ const UsersRegister: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                {loadError && (
+                    <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                        {loadError}
+                    </div>
+                )}
                 <div className="p-4 border-b border-slate-200 bg-slate-50/50">
                     <div className="relative max-w-md">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
@@ -148,7 +207,11 @@ const UsersRegister: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {filteredUsers.length === 0 ? (
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={5} className="p-8 text-center text-slate-500">Carregando usuários...</td>
+                                </tr>
+                            ) : filteredUsers.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="p-8 text-center text-slate-500">Nenhum usuário encontrado.</td>
                                 </tr>
@@ -265,6 +328,7 @@ const UsersRegister: React.FC = () => {
                                     <label className="block text-xs font-bold text-slate-700 mb-1">E-mail</label>
                                     <input
                                         type="email"
+                                        required
                                         value={userForm.email}
                                         onChange={e => setUserForm({...userForm, email: e.target.value})}
                                         placeholder="nome@marica.rj.gov.br"
@@ -288,7 +352,7 @@ const UsersRegister: React.FC = () => {
                                     <label className="block text-xs font-bold text-slate-700 mb-1">Senha de Acesso Inicial *</label>
                                     <input
                                         type="password"
-                                        required
+                                        required={!editingId}
                                         value={userForm.senha}
                                         onChange={e => setUserForm({...userForm, senha: e.target.value})}
                                         placeholder="Defina uma senha provisória"
@@ -307,9 +371,10 @@ const UsersRegister: React.FC = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-5 py-2.5 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
+                                    disabled={isSaving}
+                                    className="px-5 py-2.5 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-60"
                                 >
-                                    {editingId ? 'Salvar Alterações' : 'Salvar Usuário'}
+                                    {isSaving ? 'Salvando...' : editingId ? 'Salvar Alterações' : 'Salvar Usuário'}
                                 </button>
                             </div>
                         </form>
