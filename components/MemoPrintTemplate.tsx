@@ -30,11 +30,11 @@ const MemoPrintTemplate: React.FC<MemoPrintTemplateProps> = ({ memo }) => {
     // This component is only rendered for printing (handled by CSS via display: none for screen)
     // and block for print
     return (
-        <div id="memo-print-container" className="print-only w-full min-h-screen bg-white hidden" style={{ fontFamily: 'Arial, "Times New Roman", serif', fontSize: '12pt', color: 'black', lineHeight: 1.5, textAlign: 'justify' }}>
+        <div id="memo-print-container" className="print-only w-full min-h-screen bg-white hidden" style={{ fontFamily: 'Arial, "Times New Roman", serif', fontSize: '12pt', color: 'black', lineHeight: 1.5, textAlign: 'justify', width: '210mm' }}>
 
             {/* Margins ABNT: Superior 3cm, Esquerda 3cm, Inferior 2cm, Direita 2cm */}
             {/* Note: jsPDF will handle actual page margins via html2pdf options. We'll set padding to create the visual boundary before rasterization. */}
-            <div className="mx-auto relative min-h-screen" style={{ paddingTop: '1cm', paddingBottom: '0cm', paddingLeft: '2cm', paddingRight: '1cm' }}>
+            <div className="mx-auto relative min-h-screen" style={{ paddingTop: '1cm', paddingBottom: '3.2cm', paddingLeft: '2cm', paddingRight: '1cm' }}>
 
                 {/* Header Section (Logo and Secretariat) */}
                 <div className="flex items-center justify-center mb-12 pb-4">
@@ -81,17 +81,17 @@ const MemoPrintTemplate: React.FC<MemoPrintTemplateProps> = ({ memo }) => {
                 </div>
 
                 {/* Body Content */}
-                <div className="mb-10">
+                <div className="mb-10 memo-body">
                     {(memo.content || memo.body || '').split('\n').map((paragraph, idx) => (
-                        <p key={idx} className="mb-4" style={{ textIndent: '1.25cm' }}>
+                        <p key={idx} className="mb-4" style={{ textIndent: '1.25cm', orphans: 3, widows: 3 }}>
                             {paragraph || '\u00A0'}
                         </p>
                     ))}
-                    <p className="mt-8 mb-20" style={{ textIndent: '1.25cm' }}>Atenciosamente,</p>
+                    <p className="mt-8 mb-12 avoid-page-break" style={{ textIndent: '1.25cm', breakInside: 'avoid', pageBreakInside: 'avoid' }}>Atenciosamente,</p>
                 </div>
 
                 {/* Signer Block */}
-                <div className="w-full flex flex-col items-center justify-center text-center leading-[1.0]">
+                <div className="signature-block w-full flex flex-col items-center justify-center text-center" style={{ lineHeight: 1.25, breakInside: 'avoid', pageBreakInside: 'avoid', marginTop: '0.8cm', paddingBottom: '0.8cm' }}>
                     <p className="font-bold">{memo.signer || 'IVANA CRISTINA MELO DE MOURA'}</p>
                     <p>{memo.signerRole || 'Secretária de Representação e Articulação Institucional - SERAI'}</p>
                 </div>

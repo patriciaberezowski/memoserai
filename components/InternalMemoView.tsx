@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Memo, AppView, AppViewAlias } from '../types';
 import html2pdf from 'html2pdf.js';
-import { INITIAL_AREAS } from './mockData';
+import { getSignedMemoUrl, makeMemoOfficial, saveMemo, uploadSignedMemo } from '../services/memoRepository';
 
 interface InternalMemoViewProps {
     memo: Memo | null;
@@ -11,6 +11,8 @@ interface InternalMemoViewProps {
 
 const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setSelectedMemo }) => {
     const [showUpload, setShowUpload] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [showStatusMenu, setShowStatusMenu] = useState(false);
 
     if (!memo) {
         return (
@@ -21,39 +23,102 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
         );
     }
 
-    const isLocked = memo.hasSignedPdf;
+    const isSigned = memo.status?.toUpperCase() === 'ASSINADO' || !!memo.hasSignedPdf;
+    const isOfficial = !!memo.processNumber || ['BAIXADO', 'DOWNLOAD', 'ASSINADO'].includes(memo.status?.toUpperCase() || '');
+    const isLocked = isOfficial || isSigned;
 
     const handleEdit = () => {
         setView(AppViewAlias.EDIT_INTERNAL_MEMO);
     };
 
-    const handlePrint = async () => {
-        let isNewOfficial = false;
-        let updatedMemo = { ...memo };
+    const handleStatusChange = async (status: string) => {
+        try {
+            setIsSaving(true);
+            const savedMemo = await saveMemo({
+                ...memo,
+                status,
+                history: [{
+                    id: crypto.randomUUID(),
+                    action: `Status alterado para ${status}`,
+                    date: new Date().toLocaleDateString('pt-BR'),
+                    time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                    userName: 'Patrícia Berezowski',
+                    userRole: 'Administrador',
+                }, ...(memo.history || [])],
+            });
+            setSelectedMemo(savedMemo);
+            setShowStatusMenu(false);
+        } catch (error) {
+            console.error('Erro ao atualizar status:', error);
+            alert('Não foi possível atualizar o status no Supabase.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSignedUpload = async (file?: File) => {
+        if (!file) return;
 
         if (!memo.processNumber) {
-            const area = INITIAL_AREAS.find(a => a.nome === memo.responsibleArea);
-            const sigla = area ? area.sigla : 'SERAI';
-            const randomNum = Math.floor(Math.random() * 900) + 100;
-            const processNumber = `${randomNum}/2026/SERAI/${sigla}`;
-
-            alert(`Atenção: Número Oficial gerado e retido!\n\n(Isto atualizará o banco de dados marcando este Rascunho com o número final).\nIniciando Download do PDF...`);
-
-            updatedMemo = {
-                ...memo,
-                processNumber: processNumber,
-                status: 'DOWNLOAD'
-            };
-
-            memo.processNumber = processNumber;
-            memo.status = 'DOWNLOAD';
-
-            setSelectedMemo(updatedMemo);
-            isNewOfficial = true;
+            alert('Gere o oficial e baixe o PDF antes de anexar a versão assinada.');
+            return;
         }
 
-        if (isNewOfficial) {
-            await new Promise(resolve => setTimeout(resolve, 300));
+        try {
+            setIsSaving(true);
+            const savedMemo = await uploadSignedMemo(memo, file);
+            setSelectedMemo(savedMemo);
+            setShowUpload(false);
+            alert('Memorando assinado anexado. Status alterado para ASSINADO.');
+        } catch (error) {
+            console.error('Erro ao subir memorando assinado:', error);
+            alert('Não foi possível subir o PDF assinado no Supabase.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSignedDownload = async () => {
+        if (!memo.signedFilePath) {
+            alert('Este memorando ainda não possui arquivo assinado salvo.');
+            return;
+        }
+
+        try {
+            const signedUrl = await getSignedMemoUrl(memo.signedFilePath);
+            const a = document.createElement('a');
+            a.href = signedUrl;
+            a.download = memo.fileName || 'memorando-assinado.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Erro ao baixar PDF assinado:', error);
+            alert('Não foi possível baixar o PDF assinado.');
+        }
+    };
+
+    const handlePrint = async () => {
+        let updatedMemo = { ...memo };
+
+        try {
+            setIsSaving(true);
+            if (!memo.processNumber) {
+                updatedMemo = await makeMemoOfficial(memo);
+                setSelectedMemo(updatedMemo);
+                await new Promise(resolve => setTimeout(resolve, 400));
+            } else if (memo.status?.toUpperCase() === 'RASCUNHO') {
+                updatedMemo = await saveMemo({ ...memo, status: 'BAIXADO' });
+                setSelectedMemo(updatedMemo);
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        } catch (error) {
+            console.error('Erro ao gerar número oficial:', error);
+            alert('Não foi possível gerar o número oficial no Supabase.');
+            setIsSaving(false);
+            return;
+        } finally {
+            setIsSaving(false);
         }
 
         const element = document.getElementById('memo-print-container');
@@ -62,11 +127,12 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
         element.classList.remove('hidden');
 
         const opt = {
-            margin: [0, 0, 0, 0] as [number, number, number, number], // The margins are simulated by padding inside the HTML container
-            filename: `Memorando_${memo.processNumber ? memo.processNumber.replace(/\//g, '-') : 'Rascunho'}.pdf`,
+            margin: [0, 0, 82, 0] as [number, number, number, number],
+            filename: `Memorando_${updatedMemo.processNumber ? updatedMemo.processNumber.replace(/\//g, '-') : 'Rascunho'}.pdf`,
             image: { type: 'jpeg' as const, quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'pt' as const, format: 'a4', orientation: 'portrait' as const }
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'pt' as const, format: 'a4', orientation: 'portrait' as const },
+            pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-page-break', '.signature-block'] }
         };
 
         try {
@@ -141,7 +207,7 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
                         <span>/</span>
                         <span className="text-red-600">Internos</span>
                         <span>/</span>
-                        <span>{memo.processNumber}</span>
+                        <span>{memo.processNumber || 'Rascunho'}</span>
                     </div>
                 </div>
 
@@ -151,10 +217,10 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
                         <span className="material-symbols-outlined text-[18px]">history</span>
                         Histórico
                     </button>
-                    {!isLocked ? (
+                    {!isOfficial ? (
                         <>
                             <button
-                                onClick={() => alert('Troca rápida de Status')}
+                                onClick={() => setShowStatusMenu(!showStatusMenu)}
                                 className="px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-xs uppercase hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
                             >
                                 <span className="material-symbols-outlined text-[18px]">swap_horiz</span>
@@ -167,26 +233,30 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
                                 <span className="material-symbols-outlined text-[18px]">edit</span>
                                 Editar Rascunho
                             </button>
-                            <button
-                                className="px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-xs uppercase hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
-                                onClick={() => setShowUpload(!showUpload)}
-                            >
-                                <span className="material-symbols-outlined text-[18px]">upload</span>
-                                Subir Assinado
-                            </button>
                         </>
                     ) : (
                         <>
                             <button
-                                onClick={() => alert('Inserir Observação Restrita')}
+                                onClick={() => setShowStatusMenu(!showStatusMenu)}
                                 className="px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-xs uppercase hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
                             >
-                                <span className="material-symbols-outlined text-[18px]">note_add</span>
-                                Observação
+                                <span className="material-symbols-outlined text-[18px]">swap_horiz</span>
+                                Trocar Status
                             </button>
+                            {!isSigned && (
+                                <button
+                                    className="px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-xs uppercase hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
+                                    onClick={() => setShowUpload(!showUpload)}
+                                    disabled={isSaving}
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">upload</span>
+                                    Subir Assinado
+                                </button>
+                            )}
                             <button
                                 className="px-4 py-2.5 rounded-lg border border-slate-200 bg-primary text-white font-bold text-xs uppercase hover:bg-red-700 transition-all flex items-center gap-2 shadow-sm"
-                                onClick={() => alert('Download do PDF Assinado')}
+                                onClick={handleSignedDownload}
+                                disabled={!memo.signedFilePath}
                             >
                                 <span className="material-symbols-outlined text-[18px]">download</span>
                                 Baixar Assinado
@@ -194,19 +264,36 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
                         </>
                     )}
 
-                    {!isLocked && (
+                    {!isSigned && (
                         <button
                             onClick={handlePrint}
-                            className="px-4 py-2.5 rounded-lg bg-primary text-white font-black text-xs uppercase hover:bg-red-700 transition-all flex items-center gap-2 shadow-lg shadow-primary/20"
+                            disabled={isSaving}
+                            className="px-4 py-2.5 rounded-lg bg-primary text-white font-black text-xs uppercase hover:bg-red-700 transition-all flex items-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-60"
                         >
                             <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
-                            {memo.processNumber ? 'Imprimir Oficial' : 'Gerar Oficial & Imprimir'}
+                            {isSaving ? 'Salvando...' : memo.processNumber ? 'Download Oficial' : 'Gerar Oficial e Download'}
                         </button>
                     )}
                 </div>
             </div>
 
-            {showUpload && !isLocked && (
+            {showStatusMenu && (
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-8 shadow-sm flex flex-wrap items-center gap-3">
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-500">Trocar status:</span>
+                    {['PENDENTE', 'VENCIDO', 'RESOLVIDO'].map(status => (
+                        <button
+                            key={status}
+                            onClick={() => handleStatusChange(status)}
+                            disabled={isSaving}
+                            className="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold uppercase disabled:opacity-60"
+                        >
+                            {status === 'PENDENTE' ? 'Pendente' : status === 'VENCIDO' ? 'Vencido' : 'Resolvido'}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {showUpload && isOfficial && !isSigned && (
                 <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 mb-8 flex flex-col items-center justify-center text-center">
                     <h4 className="font-bold text-slate-800 mb-2">Upload do Memorando Assinado</h4>
                     <p className="text-sm text-slate-500 mb-4 max-w-lg">Ao realizar o upload da versão assinada (PDF), o conteúdo base deste memorando ficará permanentemente trancado para edições, garantindo a integridade do rascunho com o documento oficial.</p>
@@ -215,7 +302,7 @@ const InternalMemoView: React.FC<InternalMemoViewProps> = ({ memo, setView, setS
                             <span className="material-symbols-outlined text-4xl text-slate-400 mb-2">upload_file</span>
                             <p className="text-sm font-semibold text-primary">Selecione o arquivo PDF</p>
                         </div>
-                        <input type="file" className="hidden" accept="application/pdf" onChange={() => alert("Upload do Documento finalizado! (A atualizar a UI logicamente em refatorações futuras)")} />
+                        <input type="file" className="hidden" accept="application/pdf" onChange={(event) => handleSignedUpload(event.target.files?.[0])} />
                     </label>
                 </div>
             )}

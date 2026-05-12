@@ -68,6 +68,7 @@ export interface Memo {
   linkedMemo?: string;
   fileName?: string;
   fileUrl?: string;
+  signedFilePath?: string;
   destinos?: {
       tipo: 'Secretaria' | 'Autarquia';
       orgao: string;

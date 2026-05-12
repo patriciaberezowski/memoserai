@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Memo, AppView, AppViewAlias } from '../types';
 import html2pdf from 'html2pdf.js';
-import { listMemos, saveMemo } from '../services/memoRepository';
+import { listMemos, makeMemoOfficial } from '../services/memoRepository';
 
 interface MemoListProps {
   type?: 'INTERNO' | 'EXTERNO' | 'EXTRA';
@@ -106,7 +106,7 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
         } else {
           // Lógica Internos
           const isRascunho = upStatus === 'RASCUNHO' || !m.processNumber;
-          const isDownload = upStatus === 'DOWNLOAD' && !!m.processNumber;
+          const isDownload = ['DOWNLOAD', 'BAIXADO'].includes(upStatus) && !!m.processNumber;
           const isAssinado = upStatus === 'ASSINADO';
           const isResolvido = ['RESOLVIDO', 'ARQUIVADO', 'CONCLUIDO'].includes(upStatus);
           const isVencido = !isResolvido && !isAssinado && !isDownload && !isRascunho &&
@@ -192,7 +192,8 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
       case 'RASCUNHO':
         return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">Rascunho</span>;
       case 'DOWNLOAD':
-        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">Download</span>;
+      case 'BAIXADO':
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">Baixado</span>;
       case 'ASSINADO':
         return <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-lime-100 text-lime-700">Assinado</span>;
       case 'PENDENTE':
@@ -354,7 +355,7 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
               ) : (
                 <>
                   <option value="RASCUNHOS">Rascunhos</option>
-                  <option value="DOWNLOAD">Download</option>
+                  <option value="DOWNLOAD">Baixados</option>
                   <option value="ASSINADOS">Assinados</option>
                   <option value="PENDENTES">Pendentes</option>
                   <option value="VENCIDOS">Vencidos</option>
@@ -588,22 +589,14 @@ const MemoList: React.FC<MemoListProps> = ({ type, kpiFilter, setView, setSelect
                               let isNewOfficial = false;
 
                               if (!memo.processNumber) {
-                                alert('Atenção: Número Oficial gerado e retido!\n\n(Isto atualizará o banco de dados marcando este Rascunho com o número final).\nIniciando Download do PDF...');
-
-                                updatedMemo = {
-                                  ...memo,
-                                  processNumber: '077/2026/SERAI/PMM',
-                                  status: 'DOWNLOAD'
-                                };
-
-                                memo.processNumber = '077/2026/SERAI/PMM';
-                                memo.status = 'DOWNLOAD';
+                                isNewOfficial = true;
+                              } else if (memo.status?.toUpperCase() === 'RASCUNHO') {
                                 isNewOfficial = true;
                               }
 
                               if (isNewOfficial) {
                                 try {
-                                  const savedMemo = await saveMemo(updatedMemo);
+                                  const savedMemo = await makeMemoOfficial(updatedMemo);
                                   setAllMemos(prev => prev.map(item => item.id === savedMemo.id ? savedMemo : item));
                                   updatedMemo = savedMemo;
                                 } catch (error) {

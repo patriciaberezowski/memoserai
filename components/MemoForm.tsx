@@ -35,7 +35,7 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
   const [category, setCategory] = useState<'Informativo' | 'Demanda'>('Informativo');
   const [linkedMemo, setLinkedMemo] = useState('');
   const [status, setStatus] = useState('PENDENTE');
-  const isLocked = isEdit && !!initialData?.hasSignedPdf;
+  const isLocked = isEdit && (!!initialData?.hasSignedPdf || !!initialData?.processNumber || ['BAIXADO', 'DOWNLOAD', 'ASSINADO'].includes(initialData?.status?.toUpperCase?.() || ''));
 
   const [content, setContent] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -221,12 +221,14 @@ const MemoForm: React.FC<MemoFormProps> = ({ initialData, isEdit = false, setVie
               </label>
             </div>
 
-            {isEdit && (
+            {isEdit && isLocked && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4">
                 <label className="block">
                   <span className="text-sm font-bold text-slate-700 uppercase tracking-widest text-primary">Status Atual</span>
                   <select value={status} onChange={e => setStatus(e.target.value)} className="mt-2 block w-full rounded-xl border-primary focus:border-primary focus:ring-primary/20 text-sm py-3 bg-primary/5">
                     <option value="PENDENTE">Pendente</option>
+                    <option value="VENCIDO">Vencido</option>
+                    <option value="RESOLVIDO">Resolvido</option>
                     <option value="CONCLUIDO">Concluído</option>
                     <option value="ARQUIVADO">Arquivado</option>
                   </select>
