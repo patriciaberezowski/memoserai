@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Memo, AppView, AppViewAlias, MemoHistoryEntry } from '../types';
 import { INITIAL_AREAS } from './mockData';
-import { mockSecretarias } from './mockSecretarias';
+import { INITIAL_SECRETARIAS as mockSecretarias } from './mockSecretarias';
 
 interface ExtraMemoFormProps {
     initialData?: Memo | null;
